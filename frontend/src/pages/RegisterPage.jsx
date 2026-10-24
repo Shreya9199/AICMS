@@ -53,7 +53,7 @@ export const RegisterPage = () => {
           Create Complainant Account
         </h2>
         <p className="mt-1 text-center text-xs text-slate-500 max-w-sm mx-auto">
-          Submit grievances, track real-time SLA resolution timelines, and receive notifications
+          AICMS • AICTE Integrated Case Monitoring System — File grievances and track real-time resolution
         </p>
       </div>
 

@@ -1,7 +1,7 @@
-# NIVARAN (AICMS)
-> **Integrated Institution Complaint Monitoring & Status Portal**
+# AICMS - AICTE Integrated Case Monitoring System
+> **Official AICTE Institutional Grievance & Case Monitoring Platform**
 > 
-> *A unified, transparent grievance governance ecosystem for higher education institutions, students, faculty, and regulatory authorities.*
+> *A unified, transparent case governance ecosystem for higher education institutions, students, faculty, and regulatory authorities.*
 
 [![Repository](https://img.shields.io/badge/GitHub-Shreya9199%2FAICMS-blue?logo=github)](https://github.com/Shreya9199/AICMS)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi)](https://fastapi.tiangolo.com)
@@ -13,7 +13,7 @@
 
 ## 📌 Overview
 
-**Nivaran** (Integrated Institution Complaint Monitoring System - **AICMS**) is a production-grade grievance management platform. It streamlines the filing, tracking, investigation, and resolution of institutional complaints with strict regulatory oversight, transparent public audit trails, and automated 14-day Service Level Agreement (SLA) timers.
+**AICMS** (**AICTE Integrated Case Monitoring System**) is a production-grade institutional grievance and case governance platform. It streamlines the filing, tracking, investigation, and resolution of institutional complaints with strict regulatory oversight, transparent public audit trails, and automated 14-day Service Level Agreement (SLA) timers.
 
 ---
 

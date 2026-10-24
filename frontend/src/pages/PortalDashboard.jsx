@@ -35,9 +35,9 @@ export const PortalDashboard = () => {
         {/* Header bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Complainant Portal</h1>
+            <h1 className="text-2xl font-bold text-slate-900">AICMS Complainant Portal</h1>
             <p className="text-xs text-slate-500 mt-1">
-              View your registered grievances, status histories, and progress reports
+              AICTE Integrated Case Monitoring System — View your registered grievances and SLA progress
             </p>
           </div>
           <Link

@@ -36,10 +36,10 @@ export const LandingPage = () => {
               </div>
 
               <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.15] text-white">
-                Integrated Institutional <br />
+                AICMS <br />
                 <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-300 to-teal-300">
-                  Grievance Monitoring
-                </span> Portal
+                  AICTE Integrated Case
+                </span> Monitoring System
               </h1>
 
               <p className="text-base sm:text-lg text-slate-300 max-w-2xl leading-relaxed font-normal">

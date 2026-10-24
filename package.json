@@ -1,7 +1,7 @@
 {
-  "name": "nivaran-workspace",
+  "name": "aicms",
   "version": "1.0.0",
-  "description": "Nivaran Integrated Complaint Monitoring and Status Dashboard",
+  "description": "AICMS - AICTE Integrated Case Monitoring System",
   "scripts": {
     "dev": "npm --prefix frontend run dev",
     "start": "npm --prefix frontend run dev",

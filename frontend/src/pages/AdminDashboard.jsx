@@ -240,10 +240,10 @@ export const AdminDashboard = () => {
             </div>
             <div>
               <div className="text-base font-bold text-slate-900 tracking-tight leading-none">
-                ShikayatSetu
+                AICMS
               </div>
               <div className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider mt-1">
-                AICTE • Official Portal
+                AICTE Integrated Case Monitoring System
               </div>
             </div>
           </div>

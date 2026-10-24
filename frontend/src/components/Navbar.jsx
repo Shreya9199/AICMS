@@ -43,14 +43,14 @@ export const Navbar = () => {
           <div>
             <div className="text-xl font-black tracking-tight text-white flex items-center gap-2">
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-blue-200">
-                NIVARAN
+                AICMS
               </span>
               <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-400/30">
                 Official
               </span>
             </div>
             <div className="text-[10px] text-slate-400 tracking-tight leading-none mt-0.5">
-              Integrated Complaint Monitoring System
+              AICTE Integrated Case Monitoring System
             </div>
           </div>
         </Link>

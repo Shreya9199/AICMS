@@ -164,7 +164,7 @@ def submit_complaint(
     send_notification_email(
         to_email=current_user.email,
         subject=f"Grievance Acknowledged - {complaint.complaint_number}",
-        body_text=f"Dear {current_user.name},\n\nYour grievance has been registered with reference ID {complaint.complaint_number}.\nYou can track updates anytime on the Nivaran portal.\n\nSLA Target Resolution Date: {due_date.strftime('%d-%b-%Y')}",
+        body_text=f"Dear {current_user.name},\n\nYour grievance has been registered with reference ID {complaint.complaint_number}.\nYou can track updates anytime on the AICMS portal (AICTE Integrated Case Monitoring System).\n\nSLA Target Resolution Date: {due_date.strftime('%d-%b-%Y')}",
         complaint_number=complaint.complaint_number
     )
 

@@ -59,10 +59,10 @@ export const PublicTrackPage = () => {
               <span>Public Verification</span>
             </span>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              Track Grievance Status
+              AICMS Public Case Tracking
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Real-time audit records for registered complainants. No login required.
+              AICTE Integrated Case Monitoring System — Live status and audit records. No login required.
             </p>
           </div>
 

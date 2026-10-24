@@ -145,9 +145,9 @@ export const SubmitComplaintPage = () => {
       <div className="max-w-3xl mx-auto space-y-6">
         
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">File a Grievance</h1>
+          <h1 className="text-2xl font-bold text-slate-900">File a Grievance • AICMS</h1>
           <p className="text-xs text-slate-500 mt-1">
-            Provide comprehensive information to ensure expedited review and proper regulatory bureau allocation.
+            AICTE Integrated Case Monitoring System — Provide comprehensive details for expedited regulatory allocation and 14-day SLA monitoring.
           </p>
         </div>
 

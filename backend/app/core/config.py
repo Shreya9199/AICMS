@@ -3,7 +3,7 @@ from typing import List, Optional
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Nivaran - Complaint Monitoring & Status Portal"
+    PROJECT_NAME: str = "AICMS - AICTE Integrated Case Monitoring System"
     API_V1_STR: str = "/api/v1"
     
     # Security

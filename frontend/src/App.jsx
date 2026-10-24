@@ -102,7 +102,7 @@ function AppContent() {
         <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 py-6 text-xs text-center">
           <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
-              <strong>Nivaran</strong> • Integrated Institution Complaint Monitoring System
+              <strong>AICMS</strong> • AICTE Integrated Case Monitoring System
             </div>
             <div className="text-[11px] text-slate-500">
               Hackathon MVP Demonstration • Strict Complainant Privacy & Role Access Enforcement

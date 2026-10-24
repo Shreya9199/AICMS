@@ -85,10 +85,10 @@ export const LoginPage = () => {
           </div>
           <div>
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-              {portalTab === 'citizen' ? 'Complainant Grievance Portal' : 'Official Authority Portal'}
+              AICMS • {portalTab === 'citizen' ? 'Complainant Grievance Portal' : 'Official Authority Portal'}
             </h1>
             <p className="text-xs uppercase font-semibold text-slate-500 tracking-wider mt-0.5">
-              {portalTab === 'citizen' ? 'Public Citizen Redressal' : 'Strict Role-Protected Administration'}
+              AICTE Integrated Case Monitoring System
             </p>
           </div>
         </div>
