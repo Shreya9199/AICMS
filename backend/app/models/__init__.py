@@ -14,6 +14,7 @@ class Role:
     OFFICER = "officer"
     BUREAU_ADMIN = "bureau_admin"
     SUPER_ADMIN = "super_admin"
+    INSTITUTION = "institution"
 
 class ComplaintStatus:
     SUBMITTED = "submitted"
@@ -40,6 +41,8 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     role = Column(String(50), nullable=False, default=Role.COMPLAINANT)
     bureau_id = Column(String(36), ForeignKey("bureaus.id", ondelete="SET NULL"), nullable=True)
+    institution_name = Column(String(255), nullable=True, index=True)
+    institute_code = Column(String(100), nullable=True, index=True)
     active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
@@ -79,9 +82,15 @@ class Complaint(Base):
     description = Column(Text, nullable=False)
     category = Column(String(100), nullable=False, index=True)
     institution_name = Column(String(255), nullable=False, index=True)
+    institute_code = Column(String(100), nullable=True, index=True)
     institution_state = Column(String(100), nullable=False, index=True)
     priority = Column(String(50), nullable=False, default=Priority.MEDIUM)
     status = Column(String(50), nullable=False, default=ComplaintStatus.SUBMITTED, index=True)
+
+    # Institutional compliance & action fields
+    action_required = Column(Text, nullable=True)
+    institutional_response = Column(Text, nullable=True)
+    institutional_response_at = Column(DateTime, nullable=True)
 
     submitted_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

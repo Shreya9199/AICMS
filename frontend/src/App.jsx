@@ -10,13 +10,14 @@ import { PortalDashboard } from './pages/PortalDashboard';
 import { SubmitComplaintPage } from './pages/SubmitComplaintPage';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { ComplaintDetailPage } from './pages/ComplaintDetailPage';
+import { InstitutionPortal } from './pages/InstitutionPortal';
 
 // Protected Route Wrapper for Authenticated Complainants ONLY
 const ComplainantRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
-  // Mutual exclusion: Official accounts are prohibited from Complainant portal
+  if (user.role === 'institution') return <Navigate to="/institution" replace />;
   if (user.role !== 'complainant') {
     return <Navigate to="/admin" replace />;
   }
@@ -28,8 +29,19 @@ const OfficialRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login?tab=official" replace />;
-  // Mutual exclusion: Complainants are strictly prohibited from Official portal
+  if (user.role === 'institution') return <Navigate to="/institution" replace />;
   if (!['officer', 'bureau_admin', 'super_admin'].includes(user.role)) {
+    return <Navigate to="/portal" replace />;
+  }
+  return children;
+};
+
+// Protected Route Wrapper for Registered Institutions
+const InstitutionRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login?tab=institution" replace />;
+  if (user.role !== 'institution' && !['officer', 'bureau_admin', 'super_admin'].includes(user.role)) {
     return <Navigate to="/portal" replace />;
   }
   return children;
@@ -90,6 +102,16 @@ function AppContent() {
               <OfficialRoute>
                 <ComplaintDetailPage />
               </OfficialRoute>
+            }
+          />
+
+          {/* Institutional Compliance Portal */}
+          <Route
+            path="/institution"
+            element={
+              <InstitutionRoute>
+                <InstitutionPortal />
+              </InstitutionRoute>
             }
           />
 

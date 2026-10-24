@@ -286,12 +286,20 @@ export const LandingPage = () => {
               Authorized Officers, Bureau Admins, and Super Administrators can sign in to inspect assigned dossiers, execute status transitions, and issue compliance notices.
             </p>
           </div>
-          <Link
-            to="/login?tab=official"
-            className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-sm font-semibold shadow-lg shadow-indigo-600/30 hover:shadow-indigo-500/50 transition duration-200 whitespace-nowrap"
-          >
-            Go to Official Login
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              to="/login?tab=institution"
+              className="px-5 py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs sm:text-sm font-semibold shadow-lg shadow-amber-600/30 transition duration-200 whitespace-nowrap flex items-center gap-1.5"
+            >
+              <span>Institution Portal</span>
+            </Link>
+            <Link
+              to="/login?tab=official"
+              className="px-5 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs sm:text-sm font-semibold shadow-lg shadow-indigo-600/30 hover:shadow-indigo-500/50 transition duration-200 whitespace-nowrap"
+            >
+              Go to Official Login
+            </Link>
+          </div>
         </div>
       </section>
     </div>

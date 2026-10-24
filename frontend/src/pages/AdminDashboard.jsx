@@ -6,7 +6,7 @@ import {
   LayoutGrid, FileText, Building2, Users2, BarChart3, Settings, HelpCircle,
   Plus, Search, SlidersHorizontal, ChevronDown, Clock, CheckCircle2,
   AlertCircle, ArrowUpRight, ArrowDownRight, Bell, MoreHorizontal,
-  ChevronRight, Filter, ShieldCheck, RefreshCw, X, Check
+  ChevronRight, Filter, ShieldCheck, RefreshCw, X, Check, UserPlus
 } from 'lucide-react';
 
 export const AdminDashboard = () => {
@@ -44,6 +44,18 @@ export const AdminDashboard = () => {
   const [newCategory, setNewCategory] = useState('Fee & Financial Grievance');
   const [newPriority, setNewPriority] = useState('medium');
   const [submittingComplaint, setSubmittingComplaint] = useState(false);
+
+  // New Officer Registration Modal
+  const [isNewOfficerOpen, setIsNewOfficerOpen] = useState(false);
+  const [officerName, setOfficerName] = useState('');
+  const [officerEmail, setOfficerEmail] = useState('');
+  const [officerPassword, setOfficerPassword] = useState('');
+  const [officerBureau, setOfficerBureau] = useState('');
+  const [officerRole, setOfficerRole] = useState('officer');
+  const [bureausList, setBureausList] = useState([]);
+  const [submittingOfficer, setSubmittingOfficer] = useState(false);
+  const [officerSuccessMsg, setOfficerSuccessMsg] = useState('');
+  const [officerErrMsg, setOfficerErrMsg] = useState('');
 
   useEffect(() => {
     fetchSummary();
@@ -138,6 +150,62 @@ export const AdminDashboard = () => {
       alert(err.response?.data?.detail || 'Failed to record complaint in Neon DB');
     } finally {
       setSubmittingComplaint(false);
+    }
+  };
+
+  const openOfficerRegistrationModal = async () => {
+    setIsNewOfficerOpen(true);
+    setOfficerErrMsg('');
+    setOfficerSuccessMsg('');
+    try {
+      const res = await api.get('/analytics/bureaus');
+      setBureausList(res.data || []);
+      if (res.data?.length > 0 && !officerBureau) {
+        setOfficerBureau(res.data[0].id);
+      }
+    } catch (e) {
+      // Fallback default bureaus if needed
+      setBureausList([
+        { id: 'b1', name: 'Approvals & Affiliation Bureau' },
+        { id: 'b2', name: 'Finance & Fee Regulation Bureau' },
+        { id: 'b3', name: 'Academic Standards & Curriculum Bureau' },
+        { id: 'b4', name: 'Anti-Ragging & Campus Safety Bureau' }
+      ]);
+    }
+  };
+
+  const handleCreateOfficerSubmit = async (e) => {
+    e.preventDefault();
+    setOfficerErrMsg('');
+    setOfficerSuccessMsg('');
+
+    if (!officerName.trim() || !officerEmail.trim() || !officerPassword) {
+      setOfficerErrMsg('Please provide officer name, official email, and password.');
+      return;
+    }
+    if (officerPassword.length < 6) {
+      setOfficerErrMsg('Password must be at least 6 characters.');
+      return;
+    }
+
+    setSubmittingOfficer(true);
+    try {
+      await api.post('/administration/users', {
+        name: officerName.trim(),
+        email: officerEmail.trim(),
+        password: officerPassword,
+        role: officerRole,
+        bureau_id: officerBureau || undefined
+      });
+      setOfficerSuccessMsg(`Official account created for ${officerName}! Login credentials are active immediately.`);
+      setOfficerName('');
+      setOfficerEmail('');
+      setOfficerPassword('');
+      handleRefresh();
+    } catch (err) {
+      setOfficerErrMsg(err.response?.data?.detail || 'Failed to provision official user in database.');
+    } finally {
+      setSubmittingOfficer(false);
     }
   };
 
@@ -368,6 +436,17 @@ export const AdminDashboard = () => {
               Target: 90% resolved within 14 days
             </p>
           </div>
+
+          {/* Quick Action: Register New Officer (Lower Sidebar Button) */}
+          {['bureau_admin', 'super_admin'].includes(user?.role) && (
+            <button
+              onClick={openOfficerRegistrationModal}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 shadow-sm transition"
+            >
+              <UserPlus className="w-4 h-4 text-indigo-600" />
+              <span>Register New Officer</span>
+            </button>
+          )}
 
           {/* User profile capsule with direct signout */}
           <div className="flex items-center justify-between border-t border-slate-100 pt-3">
@@ -1153,6 +1232,142 @@ export const AdminDashboard = () => {
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow transition disabled:opacity-50"
                 >
                   {submittingComplaint ? 'Saving to Neon DB...' : 'Record Complaint'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===================== REGISTER NEW OFFICER MODAL ===================== */}
+      {isNewOfficerOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center">
+                  <UserPlus className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Provision & Register New Officer</h3>
+                  <p className="text-[11px] text-slate-500">Official Government Secretariat Account Provisioning</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsNewOfficerOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {officerSuccessMsg && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{officerSuccessMsg}</span>
+              </div>
+            )}
+
+            {officerErrMsg && (
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{officerErrMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateOfficerSubmit} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Full Name of Inquiry Officer *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={officerName}
+                  onChange={(e) => setOfficerName(e.target.value)}
+                  placeholder="e.g. Dr. Rajesh K. Varma"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Official Email Address *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={officerEmail}
+                  onChange={(e) => setOfficerEmail(e.target.value)}
+                  placeholder="e.g. rajesh.varma@aicms.gov.in"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    System Role *
+                  </label>
+                  <select
+                    value={officerRole}
+                    onChange={(e) => setOfficerRole(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  >
+                    <option value="officer">Inquiry Officer</option>
+                    <option value="bureau_admin">Bureau Admin</option>
+                    <option value="super_admin">Super Admin</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Assigned Regulatory Bureau / Cell *
+                  </label>
+                  <select
+                    value={officerBureau}
+                    onChange={(e) => setOfficerBureau(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  >
+                    {bureausList.map((b) => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Temporary Access Password *
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={officerPassword}
+                  onChange={(e) => setOfficerPassword(e.target.value)}
+                  placeholder="Minimum 6 characters"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Officer will use this email & password to sign in to the Official Portal.
+                </p>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsNewOfficerOpen(false)}
+                  className="px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingOfficer}
+                  className="px-4 py-2 bg-indigo-700 hover:bg-indigo-600 text-white rounded-lg text-xs font-semibold shadow transition disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>{submittingOfficer ? 'Registering Officer...' : 'Create Officer Account'}</span>
                 </button>
               </div>
             </form>

@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: Optional[str] = None
     SMTP_FROM_EMAIL: str = "notifications@nivaran.gov.in"
     
+    # Google Gemini AI Integration
+    GEMINI_API_KEY: Optional[str] = None
+    
     class Config:
         case_sensitive = True
         env_file = ".env"

@@ -33,6 +33,14 @@ export const ComplaintDetailPage = () => {
   const [selectedOfficer, setSelectedOfficer] = useState('');
   const [assignLoading, setAssignLoading] = useState(false);
 
+  // Gemini AI Triage State
+  const [aiTriage, setAiTriage] = useState(null);
+  const [triageLoading, setTriageLoading] = useState(false);
+
+  // Issue Action Required to Institution State
+  const [actionRequiredInput, setActionRequiredInput] = useState('');
+  const [actionRequiredLoading, setActionRequiredLoading] = useState(false);
+
   useEffect(() => {
     fetchComplaint();
     if (['bureau_admin', 'super_admin'].includes(user?.role)) {
@@ -141,6 +149,37 @@ export const ComplaintDetailPage = () => {
     }
   };
 
+  const handleRunAiTriage = async () => {
+    setTriageLoading(true);
+    try {
+      const res = await api.post(`/admin/complaints/${id}/ai-triage`);
+      setAiTriage(res.data);
+    } catch (err) {
+      alert(err.response?.data?.detail || 'AI Triage evaluation failed');
+    } finally {
+      setTriageLoading(false);
+    }
+  };
+
+  const handleIssueActionRequired = async (e) => {
+    e.preventDefault();
+    if (!actionRequiredInput.trim()) return;
+
+    setActionRequiredLoading(true);
+    try {
+      const res = await api.post(`/admin/complaints/${id}/action-required`, {
+        action_required: actionRequiredInput.trim()
+      });
+      setComplaint(res.data);
+      setActionRequiredInput('');
+      alert('Official corrective compliance directive successfully issued to institution!');
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to issue corrective action');
+    } finally {
+      setActionRequiredLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center p-12">
@@ -175,6 +214,15 @@ export const ComplaintDetailPage = () => {
           </Link>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleRunAiTriage}
+              disabled={triageLoading}
+              className="px-3.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg text-xs font-semibold shadow-md shadow-blue-500/25 transition flex items-center gap-1.5 disabled:opacity-60"
+            >
+              <Sparkles className={`w-3.5 h-3.5 ${triageLoading ? 'animate-spin' : ''}`} />
+              <span>{triageLoading ? 'Evaluating with Gemini...' : 'Run Gemini AI Triage'}</span>
+            </button>
+
             {complaint.status !== 'escalated' && complaint.status !== 'closed' && (
               <button
                 onClick={handleEscalate}
@@ -245,6 +293,79 @@ export const ComplaintDetailPage = () => {
             </div>
           </div>
         </div>
+
+        {/* Gemini AI Triage Results Banner */}
+        {aiTriage && (
+          <div className="bg-gradient-to-r from-blue-900 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white shadow-xl border border-indigo-500/30 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white shadow-md">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <span>Gemini 2.5 Flash Autonomous Grievance Triage</span>
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
+                      Live AI Insight
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-300">Intelligent urgency classification, bureau routing recommendation & relief summary</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-300">Recommended Priority:</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${
+                  aiTriage.recommended_priority === 'urgent'
+                    ? 'bg-rose-500 text-white'
+                    : aiTriage.recommended_priority === 'high'
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-blue-500 text-white'
+                }`}>
+                  {aiTriage.recommended_priority}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div className="bg-white/5 rounded-xl p-4 border border-white/10 space-y-2">
+                <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-wider block">
+                  AI Executive Relief Summary
+                </span>
+                <p className="text-slate-200 leading-relaxed">
+                  {aiTriage.ai_summary}
+                </p>
+                {aiTriage.key_concerns && (
+                  <div className="flex flex-wrap gap-1.5 pt-2">
+                    {aiTriage.key_concerns.map((kc, idx) => (
+                      <span key={idx} className="px-2 py-0.5 rounded bg-white/10 text-[11px] text-slate-200">
+                        • {kc}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-white/5 rounded-xl p-4 border border-white/10 space-y-2">
+                <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider block">
+                  Recommended Bureau Assignment
+                </span>
+                <div className="font-bold text-white text-sm flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-indigo-400" />
+                  <span>{aiTriage.recommended_bureau}</span>
+                </div>
+                <div className="pt-2">
+                  <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider block mb-1">
+                    Suggested Immediate Action
+                  </span>
+                  <p className="text-slate-200">
+                    {aiTriage.recommended_action}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* NLP Review-Only Duplicate Warnings */}
         {complaint.duplicate_matches && complaint.duplicate_matches.length > 0 && (
@@ -364,7 +485,63 @@ export const ComplaintDetailPage = () => {
           {/* Right Column: Official Workflow Controls & Separate Internal Notes */}
           <div className="lg:col-span-5 space-y-6">
             
-            {/* 1. Workflow Status Transition Form */}
+            {/* 1. Demand Institutional Action / Corrective Directive */}
+            <div className="bg-white p-6 rounded-xl border border-amber-200/80 shadow-sm space-y-3 bg-amber-50/20">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                  <ShieldAlert className="w-4 h-4 text-amber-600" />
+                  <span>Demand Institutional Action</span>
+                </h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">
+                  Compliance Order
+                </span>
+              </div>
+
+              <p className="text-[11px] text-slate-500">
+                Directs an official demand to {complaint.institution_name}. The complaint status moves to <em>Waiting for Information</em> until their submission.
+              </p>
+
+              {complaint.action_required ? (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs space-y-1">
+                  <span className="font-bold text-amber-900 block">Active Directive:</span>
+                  <p className="text-amber-800">{complaint.action_required}</p>
+                  {complaint.institutional_response ? (
+                    <div className="mt-2 pt-2 border-t border-amber-200/60">
+                      <span className="font-bold text-emerald-800 block text-[11px] flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Institution Filed Response:
+                      </span>
+                      <p className="text-emerald-900 text-xs mt-0.5">{complaint.institutional_response}</p>
+                    </div>
+                  ) : (
+                    <span className="text-[10px] text-amber-700 italic block mt-1">
+                      Awaiting response from institution administration.
+                    </span>
+                  )}
+                </div>
+              ) : null}
+
+              <form onSubmit={handleIssueActionRequired} className="space-y-3 pt-1">
+                <textarea
+                  rows={2}
+                  required
+                  value={actionRequiredInput}
+                  onChange={(e) => setActionRequiredInput(e.target.value)}
+                  placeholder="Specify required records, fee refund proof, or inquiry committee findings..."
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                ></textarea>
+
+                <button
+                  type="submit"
+                  disabled={actionRequiredLoading || !actionRequiredInput.trim()}
+                  className="w-full py-2 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-lg text-xs shadow transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{actionRequiredLoading ? 'Issuing Directive...' : 'Issue Formal Compliance Order'}</span>
+                </button>
+              </form>
+            </div>
+
+            {/* 2. Workflow Status Transition Form */}
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                 <UserCheck className="w-4 h-4 text-indigo-600" />

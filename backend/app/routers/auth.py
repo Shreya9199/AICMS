@@ -18,8 +18,8 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
             detail="An account with this email already exists"
         )
     
-    # Complainants register freely. Officers / Admins can only be provisioned by Super Admin or seeded
-    role = Role.COMPLAINANT
+    # Complainants and Institutions can register freely. Officers / Admins are provisioned by Super Admin
+    role = Role.INSTITUTION if user_in.role == Role.INSTITUTION else Role.COMPLAINANT
     bureau_id = None
     
     hashed_password = get_password_hash(user_in.password)
@@ -29,6 +29,8 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
         password_hash=hashed_password,
         role=role,
         bureau_id=bureau_id,
+        institution_name=user_in.institution_name.strip() if user_in.institution_name else None,
+        institute_code=user_in.institute_code.strip().upper() if user_in.institute_code else None,
         active=True
     )
     db.add(user)
@@ -41,7 +43,12 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
         action="USER_REGISTERED",
         entity_type="user",
         entity_id=user.id,
-        metadata_json={"role": user.role, "email": user.email}
+        metadata_json={
+            "role": user.role,
+            "email": user.email,
+            "institution_name": user.institution_name,
+            "institute_code": user.institute_code
+        }
     )
     db.add(audit)
     db.commit()
@@ -80,6 +87,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         role=user.role,
         bureau_id=user.bureau_id,
         bureau_name=bureau_name,
+        institution_name=user.institution_name,
+        institute_code=user.institute_code,
         active=user.active,
         created_at=user.created_at
     )
@@ -101,6 +110,8 @@ def get_me(current_user: User = Depends(get_current_user), db: Session = Depends
         role=current_user.role,
         bureau_id=current_user.bureau_id,
         bureau_name=bureau_name,
+        institution_name=current_user.institution_name,
+        institute_code=current_user.institute_code,
         active=current_user.active,
         created_at=current_user.created_at
     )

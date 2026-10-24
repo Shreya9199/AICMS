@@ -12,10 +12,11 @@ from app.models import (
 from app.schemas import (
     ComplaintAdminResponse, ComplaintStatusUpdate, ComplaintAssignUpdate,
     InternalNoteCreate, InternalNoteResponse, AttachmentResponse,
-    StatusHistoryResponse, DuplicateMatchResponse
+    StatusHistoryResponse, DuplicateMatchResponse, ActionRequiredUpdate
 )
 from app.services.workflow_service import is_transition_allowed
 from app.services.notification_service import send_notification_email
+from app.services.gemini_service import analyze_complaint_with_gemini
 
 router = APIRouter(prefix="/admin", tags=["Official Complaint Management"])
 
@@ -77,9 +78,13 @@ def _format_admin_complaint(comp: Complaint) -> ComplaintAdminResponse:
         description=comp.description,
         category=comp.category,
         institution_name=comp.institution_name,
+        institute_code=comp.institute_code,
         institution_state=comp.institution_state,
         status=comp.status,
         priority=comp.priority,
+        action_required=comp.action_required,
+        institutional_response=comp.institutional_response,
+        institutional_response_at=comp.institutional_response_at,
         submitted_at=comp.submitted_at,
         updated_at=comp.updated_at,
         due_at=comp.due_at,
@@ -403,3 +408,69 @@ def escalate_complaint(
     db.refresh(comp)
 
     return _format_admin_complaint(comp)
+
+@router.post("/complaints/{complaint_id}/action-required", response_model=ComplaintAdminResponse)
+def issue_action_required(
+    complaint_id: str,
+    payload: ActionRequiredUpdate,
+    current_user: User = Depends(require_official),
+    db: Session = Depends(get_db)
+):
+    """
+    Officer demands corrective compliance or documentation from the institution.
+    """
+    comp = db.query(Complaint).filter(Complaint.id == complaint_id).first()
+    if not comp:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Complaint not found")
+
+    comp.action_required = payload.action_required.strip()
+    comp.status = ComplaintStatus.WAITING_FOR_INFORMATION
+    comp.updated_at = datetime.utcnow()
+
+    history = StatusHistory(
+        complaint_id=comp.id,
+        changed_by=current_user.id,
+        old_status=comp.status,
+        new_status=ComplaintStatus.WAITING_FOR_INFORMATION,
+        public_note=f"Official Action Required issued to {comp.institution_name}: {payload.action_required.strip()}"
+    )
+    db.add(history)
+
+    audit = AuditLog(
+        actor_id=current_user.id,
+        action="ACTION_REQUIRED_ISSUED",
+        entity_type="complaint",
+        entity_id=comp.id,
+        metadata_json={
+            "action_required": payload.action_required,
+            "institution": comp.institution_name,
+            "issued_by": current_user.name
+        }
+    )
+    db.add(audit)
+    db.commit()
+    db.refresh(comp)
+
+    return _format_admin_complaint(comp)
+
+@router.post("/complaints/{complaint_id}/ai-triage")
+def ai_triage_complaint(
+    complaint_id: str,
+    current_user: User = Depends(require_official),
+    db: Session = Depends(get_db)
+):
+    """
+    Runs Gemini 2.5 Flash on demand to assess urgency, recommend AICTE bureau, and summarize root concerns.
+    """
+    comp = db.query(Complaint).filter(Complaint.id == complaint_id).first()
+    if not comp:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Complaint not found")
+
+    triage_result = analyze_complaint_with_gemini(
+        subject=comp.subject,
+        description=comp.description,
+        category=comp.category,
+        institution_name=comp.institution_name
+    )
+
+    return triage_result

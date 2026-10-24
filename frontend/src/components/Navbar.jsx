@@ -75,6 +75,14 @@ export const Navbar = () => {
                   <LayoutDashboard className="w-4 h-4" />
                   <span>Official Dashboard</span>
                 </Link>
+              ) : user.role === 'institution' ? (
+                <Link
+                  to="/institution"
+                  className="flex items-center space-x-2 text-sm font-semibold bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white px-4 py-2 rounded-lg shadow-md shadow-amber-600/30 transition duration-200"
+                >
+                  <Building2 className="w-4 h-4" />
+                  <span>Institution Desk</span>
+                </Link>
               ) : (
                 <>
                   <Link

@@ -1,12 +1,19 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Shield, User, Lock, Mail, ArrowRight, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
+import { Shield, User, Lock, Mail, ArrowRight, AlertCircle, Building2, Hash } from 'lucide-react';
 
 export const RegisterPage = () => {
+  const [searchParams] = useSearchParams();
+  const initialType = searchParams.get('type') === 'institution' ? 'institution' : 'citizen';
+
+  const [accountType, setAccountType] = useState(initialType); // 'citizen' | 'institution'
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [institutionName, setInstitutionName] = useState('');
+  const [instituteCode, setInstituteCode] = useState('');
+
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { register, login } = useAuth();
@@ -15,19 +22,44 @@ export const RegisterPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters long');
-      setLoading(false);
       return;
     }
 
+    if (accountType === 'institution') {
+      if (!institutionName.trim()) {
+        setError('Please provide the official institution / university name.');
+        return;
+      }
+      if (!instituteCode.trim()) {
+        setError('Please provide your AICTE Institute Code (e.g. 1-3512345678).');
+        return;
+      }
+    }
+
+    setLoading(true);
+
     try {
-      await register(name.trim(), email.trim(), password);
+      const extraData = accountType === 'institution' ? {
+        role: 'institution',
+        institution_name: institutionName.trim(),
+        institute_code: instituteCode.trim().toUpperCase()
+      } : {
+        role: 'complainant'
+      };
+
+      await register(name.trim(), email.trim(), password, extraData);
+      
       // Auto login
       await login(email.trim(), password);
-      navigate('/portal');
+      
+      if (accountType === 'institution') {
+        navigate('/institution');
+      } else {
+        navigate('/portal');
+      }
     } catch (err) {
       if (err.response?.data?.detail) {
         setError(err.response.data.detail);
@@ -50,16 +82,42 @@ export const RegisterPage = () => {
           </div>
         </div>
         <h2 className="mt-4 text-center text-2xl font-black text-slate-900 tracking-tight">
-          Create Complainant Account
+          {accountType === 'institution' ? 'Register Educational Institution' : 'Create Complainant Account'}
         </h2>
         <p className="mt-1 text-center text-xs text-slate-500 max-w-sm mx-auto">
-          AICMS • AICTE Integrated Case Monitoring System — File grievances and track real-time resolution
+          AICMS • AICTE Integrated Case Monitoring System — Grievance Redressal Network
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="glass-card bg-white/90 backdrop-blur-xl py-8 px-6 shadow-xl rounded-2xl border border-slate-200/90 sm:px-10 space-y-6">
           
+          {/* Account Type Toggle */}
+          <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl text-xs font-semibold text-slate-600 border border-slate-200/80">
+            <button
+              type="button"
+              onClick={() => { setAccountType('citizen'); setError(''); }}
+              className={`py-2 rounded-lg transition ${
+                accountType === 'citizen'
+                  ? 'bg-blue-600 text-white font-bold shadow'
+                  : 'hover:text-slate-900'
+              }`}
+            >
+              Complainant
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAccountType('institution'); setError(''); }}
+              className={`py-2 rounded-lg transition ${
+                accountType === 'institution'
+                  ? 'bg-amber-600 text-white font-bold shadow'
+                  : 'hover:text-slate-900'
+              }`}
+            >
+              Institution / College
+            </button>
+          </div>
+
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2.5">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
@@ -70,7 +128,7 @@ export const RegisterPage = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Full Name
+                {accountType === 'institution' ? 'Authorized Nodal Officer / Registrar Name *' : 'Full Name *'}
               </label>
               <div className="relative">
                 <input
@@ -78,16 +136,54 @@ export const RegisterPage = () => {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Rahul Sharma"
+                  placeholder={accountType === 'institution' ? 'e.g. Dr. Ramesh Kumar (Registrar)' : 'e.g. Rahul Sharma'}
                   className="w-full px-4 py-2.5 pl-10 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 bg-white/90 transition"
                 />
                 <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
               </div>
             </div>
 
+            {accountType === 'institution' && (
+              <>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Institution / University Full Name *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      value={institutionName}
+                      onChange={(e) => setInstitutionName(e.target.value)}
+                      placeholder="e.g. Delhi Technological University (DTU)"
+                      className="w-full px-4 py-2.5 pl-10 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 bg-white/90 transition"
+                    />
+                    <Building2 className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    AICTE Institution Code (PID / Code) *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      value={instituteCode}
+                      onChange={(e) => setInstituteCode(e.target.value)}
+                      placeholder="e.g. 1-3512345678 or DTU-DEL-01"
+                      className="w-full px-4 py-2.5 pl-10 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 uppercase font-mono placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 bg-white/90 transition"
+                    />
+                    <Hash className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  </div>
+                </div>
+              </>
+            )}
+
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Email Address
+                Official Email Address *
               </label>
               <div className="relative">
                 <input
@@ -95,7 +191,7 @@ export const RegisterPage = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@example.com"
+                  placeholder={accountType === 'institution' ? 'registrar@dtu.ac.in' : 'name@example.com'}
                   className="w-full px-4 py-2.5 pl-10 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 bg-white/90 transition"
                 />
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
@@ -104,7 +200,7 @@ export const RegisterPage = () => {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Password (minimum 6 characters)
+                Password (minimum 6 characters) *
               </label>
               <div className="relative">
                 <input
@@ -122,13 +218,17 @@ export const RegisterPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold rounded-xl text-xs sm:text-sm shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition duration-200 flex items-center justify-center space-x-2 disabled:opacity-50"
+              className={`w-full py-3 px-4 text-white font-semibold rounded-xl text-xs sm:text-sm shadow-lg transition duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 ${
+                accountType === 'institution'
+                  ? 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 shadow-amber-600/30'
+                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-blue-500/25'
+              }`}
             >
               {loading ? (
-                <span>Registering Account...</span>
+                <span>Registering Account in Database...</span>
               ) : (
                 <>
-                  <span>Create Account</span>
+                  <span>Create {accountType === 'institution' ? 'Institution Account' : 'Account'}</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -137,7 +237,7 @@ export const RegisterPage = () => {
 
           <div className="pt-3 text-center text-xs text-slate-500 border-t border-slate-100">
             Already have an account?{' '}
-            <Link to="/login" className="font-semibold text-blue-600 hover:underline">
+            <Link to={accountType === 'institution' ? '/login?tab=institution' : '/login'} className="font-semibold text-blue-600 hover:underline">
               Sign In here
             </Link>
           </div>

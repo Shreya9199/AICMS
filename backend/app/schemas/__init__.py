@@ -8,6 +8,8 @@ class UserBase(BaseModel):
     email: EmailStr
     role: str = "complainant"
     bureau_id: Optional[str] = None
+    institution_name: Optional[str] = None
+    institute_code: Optional[str] = None
     active: bool = True
 
 class UserCreate(BaseModel):
@@ -16,6 +18,8 @@ class UserCreate(BaseModel):
     password: str
     role: Optional[str] = "complainant"
     bureau_id: Optional[str] = None
+    institution_name: Optional[str] = None
+    institute_code: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -93,6 +97,7 @@ class ComplaintCreate(BaseModel):
     description: str = Field(..., min_length=20)
     category: str
     institution_name: str
+    institute_code: Optional[str] = None
     institution_state: str
     priority: Optional[str] = "medium"
 
@@ -104,6 +109,12 @@ class ComplaintAssignUpdate(BaseModel):
     bureau_id: Optional[str] = None
     assigned_officer_id: Optional[str] = None
     public_note: Optional[str] = None
+
+class ActionRequiredUpdate(BaseModel):
+    action_required: str
+
+class InstitutionResponseSubmit(BaseModel):
+    institutional_response: str
 
 class DuplicateMatchResponse(BaseModel):
     id: str
@@ -129,9 +140,13 @@ class ComplaintPortalResponse(BaseModel):
     description: str
     category: str
     institution_name: str
+    institute_code: Optional[str] = None
     institution_state: str
     status: str
     priority: str
+    action_required: Optional[str] = None
+    institutional_response: Optional[str] = None
+    institutional_response_at: Optional[datetime] = None
     submitted_at: datetime
     updated_at: datetime
     due_at: datetime
