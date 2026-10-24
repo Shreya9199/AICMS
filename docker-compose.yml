@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://nivaran:nivaran123@db:5432/nivarandb
+      - SECRET_KEY=nivaran_docker_secret_key_change_in_production_2026
+      - DEFAULT_SLA_DAYS=14
+    depends_on:
+      - db
+    volumes:
+      - backend_uploads:/app/uploads
+
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: nivaran
+      POSTGRES_PASSWORD: nivaran123
+      POSTGRES_DB: nivarandb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  backend_uploads:
