@@ -235,11 +235,16 @@ export const RegisterPage = () => {
             </button>
           </form>
 
-          <div className="pt-3 text-center text-xs text-slate-500 border-t border-slate-100">
-            Already have an account?{' '}
-            <Link to={accountType === 'institution' ? '/login?tab=institution' : '/login'} className="font-semibold text-blue-600 hover:underline">
-              Sign In here
-            </Link>
+          <div className="pt-3 text-center text-xs text-slate-500 border-t border-slate-100 space-y-2">
+            <div>
+              Already have an account or want to test demo accounts?{' '}
+              <Link to="/login" className="font-semibold text-blue-600 hover:underline">
+                Sign In with Demo Accounts
+              </Link>
+            </div>
+            <div className="text-[11px] text-slate-400 bg-slate-50 p-2 rounded-lg border border-slate-200/70">
+              💡 For instant evaluation: You can register any valid email & password here, or switch to the login page to use pre-loaded accounts.
+            </div>
           </div>
         </div>
       </div>

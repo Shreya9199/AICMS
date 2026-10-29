@@ -26,10 +26,6 @@ export const Navbar = () => {
             </span>
             <span className="font-medium tracking-wide">National Institutional Grievance Redressal Network</span>
           </div>
-          <div className="text-[11px] text-slate-400 hidden sm:flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-            <span>24x7 Real-Time Redressal Oversight</span>
-          </div>
         </div>
       </div>
 

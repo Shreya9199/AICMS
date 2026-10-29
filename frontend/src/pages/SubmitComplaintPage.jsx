@@ -27,6 +27,7 @@ export const SubmitComplaintPage = () => {
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [institutionName, setInstitutionName] = useState('');
+  const [instituteCode, setInstituteCode] = useState('');
   const [institutionState, setInstitutionState] = useState(STATES[0]);
   const [priority, setPriority] = useState('medium');
   const [files, setFiles] = useState([]);
@@ -67,6 +68,7 @@ export const SubmitComplaintPage = () => {
         description: description.trim(),
         category,
         institution_name: institutionName.trim(),
+        institute_code: instituteCode.trim() || undefined,
         institution_state: institutionState,
         priority
       });
@@ -161,8 +163,8 @@ export const SubmitComplaintPage = () => {
         <form onSubmit={handleSubmit} className="bg-white p-6 sm:p-8 rounded-xl border border-slate-200 shadow-sm space-y-6">
           
           {/* Institution Details */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="sm:col-span-1">
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                 Institution Name *
               </label>
@@ -181,7 +183,20 @@ export const SubmitComplaintPage = () => {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                Institution State / Region *
+                AICTE Permanent ID
+              </label>
+              <input
+                type="text"
+                value={instituteCode}
+                onChange={(e) => setInstituteCode(e.target.value)}
+                placeholder="e.g. 1-3512345678"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                State / Region *
               </label>
               <select
                 value={institutionState}

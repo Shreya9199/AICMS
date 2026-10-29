@@ -44,40 +44,10 @@ export const LoginPage = () => {
       const isOfficialRole = ['officer', 'bureau_admin', 'super_admin'].includes(user.role);
       const isInstitutionRole = user.role === 'institution';
 
-      // STRICT PORTAL ISOLATION ENFORCEMENT:
-      if (portalTab === 'citizen') {
-        if (isOfficialRole) {
-          logout();
-          setError('Access denied: This account belongs to an Authorized Official. Please switch to the Official / Officer Portal to sign in.');
-          return;
-        }
-        if (isInstitutionRole) {
-          logout();
-          setError('Access denied: This account belongs to an Institution. Please switch to the Institution Portal tab.');
-          return;
-        }
-      }
-
-      if (portalTab === 'official') {
-        if (!isOfficialRole) {
-          logout();
-          setError('Access denied: Only authorized Bureau Inquiry Officers and Administrators can access this portal.');
-          return;
-        }
-      }
-
-      if (portalTab === 'institution') {
-        if (!isInstitutionRole && !isOfficialRole) {
-          logout();
-          setError('Access denied: Please register an Institution Account or sign in with your college credentials.');
-          return;
-        }
-      }
-
-      // Route to designated portal
-      if (isOfficialRole && portalTab === 'official') {
+      // Smart automatic routing based on authenticated user role:
+      if (isOfficialRole) {
         navigate('/admin');
-      } else if (isInstitutionRole || portalTab === 'institution') {
+      } else if (isInstitutionRole) {
         navigate('/institution');
       } else {
         navigate('/portal');
@@ -85,7 +55,7 @@ export const LoginPage = () => {
     } catch (err) {
       setError(
         err.response?.data?.detail ||
-        'Authentication failed. Please check your credentials and try again.'
+        'Authentication failed. Please check your credentials or click one of the demo buttons below.'
       );
     } finally {
       setLoading(false);
@@ -256,38 +226,138 @@ export const LoginPage = () => {
             </button>
           </form>
 
-          {/* Quick Registration Footer for Complainants */}
-          {portalTab === 'citizen' && (
-            <div className="pt-3 text-center text-xs text-slate-500 border-t border-slate-100">
-              Need to file a grievance?{' '}
+          {/* All Demo Credentials & Quick 1-Click Login */}
+          <div className="p-4 bg-slate-50/90 border border-slate-200 rounded-xl space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Demo Accounts & Quick Login:
+              </span>
+              <span className="text-[11px] text-slate-500 font-mono">
+                PW: <span className="font-semibold text-slate-700 bg-slate-200 px-1 py-0.5 rounded">password123</span>
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              {/* Super Admin */}
+              <button
+                type="button"
+                onClick={() => {
+                  setPortalTab('official');
+                  setEmail('superadmin@nivaran.gov.in');
+                  setPassword('password123');
+                  setError('');
+                }}
+                className="p-2.5 bg-white hover:bg-indigo-50/80 border border-slate-200 hover:border-indigo-300 rounded-lg text-left transition group shadow-sm"
+              >
+                <div className="flex items-center justify-between font-semibold text-indigo-900">
+                  <span className="flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                    Super Admin
+                  </span>
+                  <span className="text-[10px] text-indigo-600 font-bold group-hover:underline">Autofill</span>
+                </div>
+                <div className="text-[11px] text-slate-500 font-mono mt-0.5 truncate">
+                  superadmin@nivaran.gov.in
+                </div>
+                <div className="text-[10px] text-slate-400 mt-1">
+                  Access: All 4 Sections (Cases, Overlaps, Institutions, Officers)
+                </div>
+              </button>
+
+              {/* Inquiry Officer */}
+              <button
+                type="button"
+                onClick={() => {
+                  setPortalTab('official');
+                  setEmail('officer@nivaran.gov.in');
+                  setPassword('password123');
+                  setError('');
+                }}
+                className="p-2.5 bg-white hover:bg-blue-50/80 border border-slate-200 hover:border-blue-300 rounded-lg text-left transition group shadow-sm"
+              >
+                <div className="flex items-center justify-between font-semibold text-blue-900">
+                  <span className="flex items-center gap-1.5">
+                    <UserCheck className="w-3.5 h-3.5 text-blue-600" />
+                    Inquiry Officer
+                  </span>
+                  <span className="text-[10px] text-blue-600 font-bold group-hover:underline">Autofill</span>
+                </div>
+                <div className="text-[11px] text-slate-500 font-mono mt-0.5 truncate">
+                  officer@nivaran.gov.in
+                </div>
+                <div className="text-[10px] text-slate-400 mt-1">
+                  Access: RB & PGRC Assigned Cases
+                </div>
+              </button>
+
+              {/* Educational Institution */}
+              <button
+                type="button"
+                onClick={() => {
+                  setPortalTab('institution');
+                  setEmail('apex.institute@aicms.ac.in');
+                  setPassword('password123');
+                  setError('');
+                }}
+                className="p-2.5 bg-white hover:bg-amber-50/80 border border-slate-200 hover:border-amber-300 rounded-lg text-left transition group shadow-sm"
+              >
+                <div className="flex items-center justify-between font-semibold text-amber-900">
+                  <span className="flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-amber-600" />
+                    Institution Desk
+                  </span>
+                  <span className="text-[10px] text-amber-600 font-bold group-hover:underline">Autofill</span>
+                </div>
+                <div className="text-[11px] text-slate-500 font-mono mt-0.5 truncate">
+                  apex.institute@aicms.ac.in
+                </div>
+                <div className="text-[10px] text-slate-400 mt-1">
+                  Access: College Compliance & Response Desk
+                </div>
+              </button>
+
+              {/* Complainant */}
+              <button
+                type="button"
+                onClick={() => {
+                  setPortalTab('citizen');
+                  setEmail('complainant@nivaran.gov.in');
+                  setPassword('password123');
+                  setError('');
+                }}
+                className="p-2.5 bg-white hover:bg-emerald-50/80 border border-slate-200 hover:border-emerald-300 rounded-lg text-left transition group shadow-sm"
+              >
+                <div className="flex items-center justify-between font-semibold text-emerald-900">
+                  <span className="flex items-center gap-1.5">
+                    <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    Complainant
+                  </span>
+                  <span className="text-[10px] text-emerald-600 font-bold group-hover:underline">Autofill</span>
+                </div>
+                <div className="text-[11px] text-slate-500 font-mono mt-0.5 truncate">
+                  complainant@nivaran.gov.in
+                </div>
+                <div className="text-[10px] text-slate-400 mt-1">
+                  Access: File & Track Grievance Status
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Registration Options */}
+          <div className="pt-3 text-center text-xs text-slate-600 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-center gap-2">
+            <span>Want to test with your own custom account?</span>
+            <div className="flex items-center gap-2">
               <Link to="/register" className="font-semibold text-blue-600 hover:underline">
-                Register Complainant Account
+                Register Complainant
               </Link>
-            </div>
-          )}
-
-          {/* Quick Registration Footer for Institutions */}
-          {portalTab === 'institution' && (
-            <div className="pt-3 text-center text-xs text-slate-500 border-t border-slate-100">
-              New college / institute representative?{' '}
+              <span>•</span>
               <Link to="/register?type=institution" className="font-semibold text-amber-600 hover:underline">
-                Register Institution Account
+                Register Institution
               </Link>
             </div>
-          )}
-
-          {/* Official Security Notice */}
-          {portalTab === 'official' && (
-            <div className="pt-3 text-center text-[11px] text-slate-500 border-t border-slate-100 space-y-1">
-              <div className="flex items-center justify-center gap-1.5 text-indigo-700 font-semibold">
-                <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                <span>Restricted Government Access</span>
-              </div>
-              <p className="text-slate-400">
-                Official accounts are provisioned exclusively by Bureau & Super Administrators via the Secretariat Dashboard.
-              </p>
-            </div>
-          )}
+          </div>
 
         </div>
 

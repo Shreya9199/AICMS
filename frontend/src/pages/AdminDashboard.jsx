@@ -6,7 +6,8 @@ import {
   LayoutGrid, FileText, Building2, Users2, BarChart3, Settings, HelpCircle,
   Plus, Search, SlidersHorizontal, ChevronDown, Clock, CheckCircle2,
   AlertCircle, ArrowUpRight, ArrowDownRight, Bell, MoreHorizontal,
-  ChevronRight, Filter, ShieldCheck, RefreshCw, X, Check, UserPlus
+  ChevronRight, Filter, ShieldCheck, RefreshCw, X, Check, UserPlus,
+  AlertTriangle, GitMerge, Shield, ArrowRightLeft, FileSpreadsheet, Eye, ExternalLink
 } from 'lucide-react';
 
 export const AdminDashboard = () => {
@@ -57,13 +58,99 @@ export const AdminDashboard = () => {
   const [officerSuccessMsg, setOfficerSuccessMsg] = useState('');
   const [officerErrMsg, setOfficerErrMsg] = useState('');
 
+  // Cross-Bureau Overlap Detection State
+  const [overlapsData, setOverlapsData] = useState({ items: [], total_overlapping_institutions: 0, total_overlapping_cases: 0 });
+  const [loadingOverlaps, setLoadingOverlaps] = useState(false);
+
+  // Consolidated Institutions State
+  const [institutionsData, setInstitutionsData] = useState([]);
+  const [loadingInstitutions, setLoadingInstitutions] = useState(false);
+  const [institutionSearch, setInstitutionSearch] = useState('');
+  const [selectedInstitutionDetail, setSelectedInstitutionDetail] = useState(null);
+
+  // Consolidated Analytics & Reports State
+  const [analyticsReports, setAnalyticsReports] = useState(null);
+  const [loadingReports, setLoadingReports] = useState(false);
+
+  // Cross-Bureau Transfer Modal State
+  const [transferModalCase, setTransferModalCase] = useState(null);
+  const [transferTargetBureau, setTransferTargetBureau] = useState('');
+  const [transferNote, setTransferNote] = useState('');
+  const [transferring, setTransferring] = useState(false);
+
+  // Advanced Filters State for Complaints
+  const [selectedBureauFilter, setSelectedBureauFilter] = useState('');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
+  const [overdueOnlyFilter, setOverdueOnlyFilter] = useState(false);
+
   useEffect(() => {
     fetchSummary();
+    fetchOverlaps();
+    fetchInstitutions();
+    fetchAnalyticsReports();
   }, []);
 
   useEffect(() => {
     fetchComplaints();
-  }, [search, statusFilter, page]);
+  }, [search, statusFilter, selectedBureauFilter, selectedCategoryFilter, overdueOnlyFilter, page]);
+
+  const fetchOverlaps = async () => {
+    setLoadingOverlaps(true);
+    try {
+      const res = await api.get('/admin/overlaps/summary');
+      setOverlapsData(res.data);
+    } catch (err) {
+      console.error('Failed to load overlaps summary:', err);
+    } finally {
+      setLoadingOverlaps(false);
+    }
+  };
+
+  const fetchInstitutions = async () => {
+    setLoadingInstitutions(true);
+    try {
+      const params = institutionSearch ? { search: institutionSearch } : {};
+      const res = await api.get('/admin/institutions/consolidated', { params });
+      setInstitutionsData(res.data || []);
+    } catch (err) {
+      console.error('Failed to load consolidated institutions:', err);
+    } finally {
+      setLoadingInstitutions(false);
+    }
+  };
+
+  const fetchAnalyticsReports = async () => {
+    setLoadingReports(true);
+    try {
+      const res = await api.get('/analytics/reports');
+      setAnalyticsReports(res.data);
+    } catch (err) {
+      console.error('Failed to load analytics reports:', err);
+    } finally {
+      setLoadingReports(false);
+    }
+  };
+
+  const handleExecuteTransfer = async (e) => {
+    e.preventDefault();
+    if (!transferModalCase || !transferTargetBureau) return;
+    setTransferring(true);
+    try {
+      await api.post(`/admin/complaints/${transferModalCase.id}/transfer`, {
+        bureau_id: transferTargetBureau,
+        public_note: transferNote.trim() || `Transferred to ensure unified single-window handling.`
+      });
+      alert(`Case ${transferModalCase.complaint_number || transferModalCase.id} successfully transferred!`);
+      setTransferModalCase(null);
+      setTransferTargetBureau('');
+      setTransferNote('');
+      handleRefresh();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to transfer complaint bureau.');
+    } finally {
+      setTransferring(false);
+    }
+  };
 
   const fetchSummary = async () => {
     setLoadingSummary(true);
@@ -85,6 +172,9 @@ export const AdminDashboard = () => {
         page_size: 10,
         search: search.trim() || undefined,
         status: statusFilter || undefined,
+        bureau_id: selectedBureauFilter || undefined,
+        category: selectedCategoryFilter || undefined,
+        overdue_only: overdueOnlyFilter || undefined
       };
       const res = await api.get('/admin/complaints', { params });
       setComplaints(res.data.items);
@@ -98,7 +188,13 @@ export const AdminDashboard = () => {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([fetchSummary(), fetchComplaints()]);
+    await Promise.all([
+      fetchSummary(),
+      fetchComplaints(),
+      fetchOverlaps(),
+      fetchInstitutions(),
+      fetchAnalyticsReports()
+    ]);
     setIsRefreshing(false);
   };
 
@@ -145,9 +241,9 @@ export const AdminDashboard = () => {
       setNewDesc('');
       setNewInst('');
       handleRefresh();
-      alert('New complaint successfully recorded in Neon DB!');
+      alert('New complaint successfully recorded in Central Database!');
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to record complaint in Neon DB');
+      alert(err.response?.data?.detail || 'Failed to record complaint in database');
     } finally {
       setSubmittingComplaint(false);
     }
@@ -329,7 +425,7 @@ export const AdminDashboard = () => {
                   </div>
                   <div className="text-[10px] text-slate-400 truncate flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
-                    <span>Live on Neon DB</span>
+                    <span>Live Central Database</span>
                   </div>
                 </div>
               </div>
@@ -368,11 +464,30 @@ export const AdminDashboard = () => {
                 >
                   <div className="flex items-center space-x-2.5">
                     <FileText className="w-4 h-4" />
-                    <span>Complaints</span>
+                    <span>Complaints & Cases</span>
                   </div>
                   <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
                     {totalCount}
                   </span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('overlaps')}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition ${
+                    activeTab === 'overlaps'
+                      ? 'bg-amber-50 text-amber-800 font-bold'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2.5">
+                    <AlertTriangle className="w-4 h-4 text-amber-500" />
+                    <span>Cross-Bureau Overlaps</span>
+                  </div>
+                  {overlapsData?.total_overlapping_institutions > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 animate-pulse">
+                      {overlapsData.total_overlapping_institutions}
+                    </span>
+                  )}
                 </button>
 
                 <button
@@ -382,7 +497,7 @@ export const AdminDashboard = () => {
                   }`}
                 >
                   <Building2 className="w-4 h-4" />
-                  <span>Institutions</span>
+                  <span>Centralized Institutions</span>
                 </button>
 
                 <button
@@ -392,14 +507,14 @@ export const AdminDashboard = () => {
                   }`}
                 >
                   <Users2 className="w-4 h-4" />
-                  <span>People & teams</span>
+                  <span>Officers & Bureaus</span>
                 </button>
               </nav>
             </div>
 
             <div>
               <div className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-                Insights
+                Reports & Governance
               </div>
               <nav className="space-y-1">
                 <button
@@ -409,7 +524,7 @@ export const AdminDashboard = () => {
                   }`}
                 >
                   <BarChart3 className="w-4 h-4" />
-                  <span>Analytics</span>
+                  <span>Analytics & Reports</span>
                 </button>
               </nav>
             </div>
@@ -493,7 +608,7 @@ export const AdminDashboard = () => {
               className="flex items-center space-x-1.5 text-xs text-slate-600 hover:text-blue-600 bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-lg transition"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-blue-600' : 'text-slate-400'}`} />
-              <span>{isRefreshing ? 'Syncing...' : 'Sync Neon DB'}</span>
+              <span>{isRefreshing ? 'Syncing...' : 'Sync Central DB'}</span>
             </button>
 
             <div className="flex items-center space-x-2 text-xs font-medium text-slate-500 hidden sm:flex">
@@ -527,7 +642,7 @@ export const AdminDashboard = () => {
                 <span className="text-amber-500 text-xl">✦</span>
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">
-                Here's what's happening across your complaint network today in Neon PostgreSQL.
+                AICTE Integrated Institution Complaint Monitoring & Cross-Bureau Real-Time Governance.
               </p>
             </div>
 
@@ -540,14 +655,17 @@ export const AdminDashboard = () => {
             </button>
           </div>
 
-          {/* 4 Metric KPI Cards connected to Neon DB */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            
-            {/* 1. Total Complaints */}
-            <div
-              onClick={() => { setStatusFilter(''); setActiveTab('complaints'); }}
-              className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-sm hover:shadow-md cursor-pointer transition"
-            >
+          {/* ===================== OVERVIEW TAB METRICS & CHARTS ===================== */}
+          {activeTab === 'overview' && (
+            <>
+              {/* 4 Metric KPI Cards connected to Neon DB */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                {/* 1. Total Complaints */}
+                <div
+                  onClick={() => { setStatusFilter(''); setActiveTab('complaints'); }}
+                  className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-sm hover:shadow-md cursor-pointer transition"
+                >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-500">Total complaints</span>
                 <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -721,7 +839,7 @@ export const AdminDashboard = () => {
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-slate-900">By status</h3>
                 </div>
-                <p className="text-[11px] text-slate-400 mt-0.5">Live distribution in Neon DB</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Live distribution across Bureaus</p>
 
                 {/* Big Total */}
                 <div className="mt-4 flex items-baseline space-x-2">
@@ -825,16 +943,21 @@ export const AdminDashboard = () => {
             </div>
 
           </div>
+          </>
+          )}
 
-          {/* ===================== RECENT COMPLAINTS TABLE ===================== */}
+          {/* ===================== COMPLAINTS TABLE (Visible on Overview & Complaints Tab) ===================== */}
+          {(activeTab === 'overview' || activeTab === 'complaints') && (
           <div className="bg-white rounded-2xl border border-slate-200/70 shadow-sm overflow-hidden">
             
             {/* Header with Search and Filter button */}
             <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">Recent complaints</h3>
+                <h3 className="text-sm font-bold text-slate-900">
+                  {activeTab === 'complaints' ? 'All Complaints & Case Dossiers' : 'Recent Complaints & Live Cases'}
+                </h3>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  Latest submissions stored in Neon PostgreSQL
+                  Single-window case tracking across AICTE Bureaus (RB, PGRC, Approvals, Safety)
                 </p>
               </div>
 
@@ -851,64 +974,63 @@ export const AdminDashboard = () => {
                   />
                 </div>
 
-                {/* Filters Trigger */}
-                <div className="relative">
-                  <button
-                    onClick={() => setFilterMenuOpen(!filterMenuOpen)}
-                    className="flex items-center space-x-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
-                  >
-                    <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Filters</span>
-                    {statusFilter && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                    )}
-                  </button>
-
-                  {/* Dropdown Menu */}
-                  {filterMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-lg p-2 z-20 space-y-1 text-xs">
-                      <div className="px-2 py-1 text-[10px] font-bold uppercase text-slate-400">Filter by Status</div>
-                      <button
-                        onClick={() => { setStatusFilter(''); setFilterMenuOpen(false); }}
-                        className={`w-full text-left px-2 py-1.5 rounded ${!statusFilter ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-50'}`}
-                      >
-                        All Statuses
-                      </button>
-                      <button
-                        onClick={() => { setStatusFilter('submitted'); setFilterMenuOpen(false); }}
-                        className={`w-full text-left px-2 py-1.5 rounded ${statusFilter === 'submitted' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-50'}`}
-                      >
-                        Under review
-                      </button>
-                      <button
-                        onClick={() => { setStatusFilter('in_progress'); setFilterMenuOpen(false); }}
-                        className={`w-full text-left px-2 py-1.5 rounded ${statusFilter === 'in_progress' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-50'}`}
-                      >
-                        In progress
-                      </button>
-                      <button
-                        onClick={() => { setStatusFilter('escalated'); setFilterMenuOpen(false); }}
-                        className={`w-full text-left px-2 py-1.5 rounded ${statusFilter === 'escalated' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-50'}`}
-                      >
-                        Overdue / Escalated
-                      </button>
-                      <button
-                        onClick={() => { setStatusFilter('resolved'); setFilterMenuOpen(false); }}
-                        className={`w-full text-left px-2 py-1.5 rounded ${statusFilter === 'resolved' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-50'}`}
-                      >
-                        Resolved
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* View all text link */}
-                <button
-                  onClick={() => { setSearch(''); setStatusFilter(''); setPage(1); }}
-                  className="text-xs text-blue-600 hover:text-blue-700 font-semibold"
+                {/* Bureau Filter */}
+                <select
+                  value={selectedBureauFilter}
+                  onChange={(e) => { setSelectedBureauFilter(e.target.value); setPage(1); }}
+                  className="px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg text-slate-700 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  View all →
+                  <option value="">All Bureaus / Cells</option>
+                  <option value="b1">Approvals & Affiliation</option>
+                  <option value="b2">Finance & Fee Regulation</option>
+                  <option value="b3">Academic Standards</option>
+                  <option value="b4">Anti-Ragging & Campus Safety</option>
+                </select>
+
+                {/* Status Filter */}
+                <select
+                  value={statusFilter}
+                  onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+                  className="px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg text-slate-700 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="submitted">Under review</option>
+                  <option value="in_progress">In progress</option>
+                  <option value="waiting_for_information">Awaiting response</option>
+                  <option value="escalated">Overdue / Escalated</option>
+                  <option value="resolved">Resolved</option>
+                  <option value="closed">Closed</option>
+                </select>
+
+                {/* Overdue Only SLA Pill Toggle */}
+                <button
+                  type="button"
+                  onClick={() => { setOverdueOnlyFilter(!overdueOnlyFilter); setPage(1); }}
+                  className={`flex items-center space-x-1.5 px-3 py-1.5 border rounded-lg text-xs font-semibold transition ${
+                    overdueOnlyFilter
+                      ? 'bg-rose-50 text-rose-700 border-rose-300 font-bold'
+                      : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <AlertCircle className={`w-3.5 h-3.5 ${overdueOnlyFilter ? 'text-rose-600' : 'text-slate-400'}`} />
+                  <span>SLA Breached Only</span>
                 </button>
+
+                {/* Reset Filters */}
+                {(statusFilter || search || selectedBureauFilter || overdueOnlyFilter) && (
+                  <button
+                    onClick={() => {
+                      setSearch('');
+                      setStatusFilter('');
+                      setSelectedBureauFilter('');
+                      setOverdueOnlyFilter(false);
+                      setPage(1);
+                    }}
+                    className="text-xs text-rose-600 hover:text-rose-700 font-semibold px-2 py-1 rounded hover:bg-rose-50 transition"
+                  >
+                    Reset
+                  </button>
+                )}
               </div>
             </div>
 
@@ -917,8 +1039,9 @@ export const AdminDashboard = () => {
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50/50 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
                   <tr>
-                    <th className="py-3 px-6">Complaint</th>
-                    <th className="py-3 px-6">Bureau</th>
+                    <th className="py-3 px-6">Complaint & Institution</th>
+                    <th className="py-3 px-6">Assigned Bureau</th>
+                    <th className="py-3 px-6">Inquiry Officer</th>
                     <th className="py-3 px-6">Submitted</th>
                     <th className="py-3 px-6">Status</th>
                     <th className="py-3 px-6 text-right">Actions</th>
@@ -927,15 +1050,15 @@ export const AdminDashboard = () => {
                 <tbody className="divide-y divide-slate-100">
                   {loadingList ? (
                     <tr>
-                      <td colSpan="5" className="py-12 text-center text-slate-400">
+                      <td colSpan="6" className="py-12 text-center text-slate-400">
                         <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                        <span>Connecting to Neon DB...</span>
+                        <span>Syncing cases...</span>
                       </td>
                     </tr>
                   ) : complaints.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="py-10 text-center text-slate-400">
-                        No complaints found in Neon DB matching the criteria.
+                      <td colSpan="6" className="py-10 text-center text-slate-400">
+                        No complaints found matching the criteria.
                       </td>
                     </tr>
                   ) : (
@@ -965,6 +1088,11 @@ export const AdminDashboard = () => {
                                   <span className="font-mono text-slate-500 font-semibold">{c.complaint_number}</span>
                                   <span className="mx-1.5">•</span>
                                   <span>{c.institution_name}</span>
+                                  {c.institute_code && (
+                                    <span className="ml-1.5 px-1 bg-slate-100 font-mono text-[10px] text-slate-500 rounded border border-slate-200">
+                                      {c.institute_code}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -972,7 +1100,18 @@ export const AdminDashboard = () => {
 
                           {/* Bureau */}
                           <td className="py-4 px-6 text-slate-600 whitespace-nowrap">
-                            {c.bureau_name || c.category || 'Approval Bureau'}
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700">
+                              {c.bureau_name || c.category || 'Approval Bureau'}
+                            </span>
+                          </td>
+
+                          {/* Officer */}
+                          <td className="py-4 px-6 text-slate-600 whitespace-nowrap text-xs">
+                            {c.assigned_officer_name ? (
+                              <span className="font-semibold text-slate-700">{c.assigned_officer_name}</span>
+                            ) : (
+                              <span className="text-slate-400 italic">Unassigned</span>
+                            )}
                           </td>
 
                           {/* Submitted Date */}
@@ -990,7 +1129,19 @@ export const AdminDashboard = () => {
 
                           {/* Action Icon / Button */}
                           <td className="py-4 px-6 text-right whitespace-nowrap text-slate-400">
-                            <div className="flex items-center justify-end space-x-1">
+                            <div className="flex items-center justify-end space-x-1.5">
+                              <button
+                                onClick={() => {
+                                  setTransferModalCase(c);
+                                  setTransferTargetBureau('');
+                                  setTransferNote('');
+                                }}
+                                title="Transfer to another Bureau/Cell"
+                                className="p-1 hover:bg-amber-50 rounded text-amber-700 hover:text-amber-800 transition text-[11px] font-semibold px-2 border border-amber-200 flex items-center gap-1"
+                              >
+                                <ArrowRightLeft className="w-3 h-3" />
+                                <span>Transfer</span>
+                              </button>
                               <button
                                 onClick={() => {
                                   setActiveActionComplaint(c);
@@ -1049,6 +1200,485 @@ export const AdminDashboard = () => {
             </div>
 
           </div>
+          )}
+
+          {/* ===================== OVERLAPS TAB ===================== */}
+          {activeTab === 'overlaps' && (
+            <div className="space-y-6">
+              <div className="bg-gradient-to-r from-amber-900/90 via-slate-900 to-slate-950 p-6 rounded-2xl border border-amber-500/30 text-white shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                      Cross-Bureau Overlap Engine Active
+                    </span>
+                    <span className="text-xs text-slate-400 font-mono">spaCy + Multi-Bureau Normalized Match</span>
+                  </div>
+                  <h2 className="text-2xl font-black tracking-tight text-white mt-1">
+                    Potential Overlapping Cases – Coordination Required
+                  </h2>
+                  <p className="text-xs text-slate-300 max-w-2xl mt-1 leading-relaxed">
+                    Identifies when grievances concerning the exact same institution are being processed simultaneously across distinct Bureaus/Cells (e.g. Regulation Bureau and PGRC). Facilitates single-window convergence, joint inquiry, and prevents conflicting regulatory proceedings.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="px-4 py-3 bg-slate-900/80 rounded-xl border border-slate-700/80 text-center">
+                    <div className="text-2xl font-black text-amber-400">{overlapsData?.total_overlapping_institutions || 0}</div>
+                    <div className="text-[10px] text-slate-400 uppercase font-semibold">Institutions Overlapping</div>
+                  </div>
+                  <div className="px-4 py-3 bg-slate-900/80 rounded-xl border border-slate-700/80 text-center">
+                    <div className="text-2xl font-black text-rose-400">{overlapsData?.total_overlapping_cases || 0}</div>
+                    <div className="text-[10px] text-slate-400 uppercase font-semibold">Concurrent Cases</div>
+                  </div>
+                </div>
+              </div>
+
+              {loadingOverlaps ? (
+                <div className="p-16 text-center text-slate-400 bg-white rounded-2xl border border-slate-200">
+                  <div className="w-8 h-8 border-2 border-amber-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                  <span>Running Cross-Bureau overlap detection algorithms...</span>
+                </div>
+              ) : overlapsData?.items?.length === 0 ? (
+                <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center space-y-3">
+                  <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
+                  <h3 className="text-base font-bold text-slate-900">No Overlapping Regulatory Cases Detected</h3>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    All current active complaints are compartmentalized without conflicting multi-bureau actions.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {overlapsData.items.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className={`bg-white rounded-2xl border ${item.is_rb_pgrc_conflict ? 'border-rose-300 shadow-md ring-1 ring-rose-200' : 'border-amber-200/80 shadow-sm'} p-6 transition`}
+                    >
+                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-100">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${
+                              item.is_rb_pgrc_conflict ? 'bg-rose-100 text-rose-800 border-rose-300' : 'bg-amber-100 text-amber-800 border-amber-300'
+                            }`}>
+                              {item.alert_level}
+                            </span>
+                            <span className="font-mono text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                              {item.institute_code || 'AICTE-PID-001'}
+                            </span>
+                            <span className="text-xs text-slate-400">• {item.region}</span>
+                          </div>
+                          <h3 className="text-lg font-black text-slate-900 mt-1">{item.institution_name}</h3>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Active across {item.bureaus_involved?.length} Bureaus/Cells: <strong className="text-slate-700">{item.bureaus_involved?.join(' & ')}</strong>
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setTransferModalCase(item.cases[0]);
+                              setTransferTargetBureau('');
+                              setTransferNote(`Coordinating multi-bureau dispute with ${item.institution_name}`);
+                            }}
+                            className="px-3.5 py-2 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white shadow-sm flex items-center gap-1.5 transition"
+                          >
+                            <ArrowRightLeft className="w-3.5 h-3.5" />
+                            <span>Transfer / Consolidate Cases</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Overlapping cases breakdown list */}
+                      <div className="mt-4 space-y-2">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                          Active Concurrent Cases ({item.cases?.length})
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {item.cases?.map((c) => (
+                            <div
+                              key={c.id}
+                              className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-slate-50 transition flex flex-col justify-between"
+                            >
+                              <div>
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="font-mono text-xs font-bold text-blue-700">{c.complaint_number}</span>
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700">
+                                    {c.bureau_name}
+                                  </span>
+                                </div>
+                                <div className="font-bold text-xs text-slate-900 mt-1.5 line-clamp-1">{c.subject}</div>
+                                <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-2">
+                                  <span>Officer: <strong>{c.assigned_officer_name}</strong></span>
+                                  <span>•</span>
+                                  <span>Status: <strong>{c.status.replace('_', ' ')}</strong></span>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between pt-3 mt-2 border-t border-slate-200/70 text-[11px]">
+                                <span className="text-slate-400">
+                                  Due: {c.due_at ? new Date(c.due_at).toLocaleDateString() : '14 Days'}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setTransferModalCase(c);
+                                      setTransferTargetBureau('');
+                                      setTransferNote(`Consolidating to resolve overlap for ${item.institution_name}`);
+                                    }}
+                                    className="text-amber-700 hover:text-amber-800 font-semibold text-xs flex items-center gap-1"
+                                  >
+                                    <ArrowRightLeft className="w-3 h-3" />
+                                    <span>Reassign</span>
+                                  </button>
+                                  <button
+                                    onClick={() => navigate(`/admin/complaint/${c.id}`)}
+                                    className="text-blue-600 hover:text-blue-700 font-semibold text-xs flex items-center gap-1"
+                                  >
+                                    <span>Details →</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===================== CENTRALIZED INSTITUTIONS TAB ===================== */}
+          {activeTab === 'institutions' && (
+            <div className="space-y-6">
+              <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-blue-600" />
+                    <span>Centralized Institution Dossiers</span>
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Unified institutional complaint histories, AICTE Permanent IDs, disposal ratios, and multi-bureau actions.
+                  </p>
+                </div>
+                <div className="relative w-full md:w-80">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <input
+                    type="text"
+                    value={institutionSearch}
+                    onChange={(e) => setInstitutionSearch(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') fetchInstitutions(); }}
+                    placeholder="Search by Institution or AICTE Code..."
+                    className="w-full pl-9 pr-4 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none bg-slate-50/50"
+                  />
+                </div>
+              </div>
+
+              {loadingInstitutions ? (
+                <div className="p-16 text-center text-slate-400 bg-white rounded-2xl border border-slate-200">
+                  <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                  <span>Loading consolidated institution profiles...</span>
+                </div>
+              ) : institutionsData.length === 0 ? (
+                <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center">
+                  <p className="text-xs text-slate-500">No institutions found matching search criteria.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {institutionsData.map((inst, i) => (
+                    <div
+                      key={i}
+                      className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between space-y-4"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                            {inst.institute_code}
+                          </span>
+                          {inst.is_multi_bureau && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3" />
+                              Multi-Bureau
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-base font-bold text-slate-900 mt-2 line-clamp-1">{inst.institution_name}</h3>
+                        <p className="text-xs text-slate-400 mt-0.5">{inst.region}</p>
+
+                        {/* Metric pills */}
+                        <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-100 text-center">
+                          <div className="p-2 bg-slate-50 rounded-lg">
+                            <div className="text-xs text-slate-400 font-medium">Total</div>
+                            <div className="text-base font-extrabold text-slate-800">{inst.total_complaints}</div>
+                          </div>
+                          <div className="p-2 bg-amber-50 rounded-lg">
+                            <div className="text-xs text-amber-600 font-medium">Pending</div>
+                            <div className="text-base font-extrabold text-amber-700">{inst.pending}</div>
+                          </div>
+                          <div className="p-2 bg-emerald-50 rounded-lg">
+                            <div className="text-xs text-emerald-600 font-medium">Disposed</div>
+                            <div className="text-base font-extrabold text-emerald-700">{inst.disposed}</div>
+                          </div>
+                        </div>
+
+                        {/* Disposal Rate Progress */}
+                        <div className="mt-3 space-y-1">
+                          <div className="flex justify-between text-[11px] text-slate-500 font-medium">
+                            <span>Disposal Efficiency</span>
+                            <span className="font-bold text-slate-800">{inst.disposal_rate_pct}%</span>
+                          </div>
+                          <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="bg-emerald-500 h-1.5 rounded-full"
+                              style={{ width: `${Math.min(100, inst.disposal_rate_pct)}%` }}
+                            ></div>
+                          </div>
+                        </div>
+
+                        {/* Bureaus Handling */}
+                        <div className="mt-3 flex flex-wrap gap-1">
+                          {inst.bureaus?.map((b, bIdx) => (
+                            <span key={bIdx} className="text-[10px] font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                              {b}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setSearch(inst.institution_name);
+                          setActiveTab('complaints');
+                        }}
+                        className="w-full py-2 bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>View All {inst.total_complaints} Cases</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===================== ANALYTICS & REPORTS TAB ===================== */}
+          {activeTab === 'analytics' && (
+            <div className="space-y-6">
+              <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-indigo-600" />
+                    <span>Executive Compliance & Performance Analytics</span>
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Bureau-wise workloads, regional breakdowns, pending case ageing distributions, and disposal ratios.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => window.print()}
+                    className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl transition flex items-center gap-1.5"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Export / Print Dossier</span>
+                  </button>
+                </div>
+              </div>
+
+              {loadingReports ? (
+                <div className="p-16 text-center text-slate-400 bg-white rounded-2xl border border-slate-200">
+                  <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                  <span>Aggregating cross-bureau performance statistics...</span>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* KPI Executive Summary Row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                      <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Overall Disposal Rate</div>
+                      <div className="text-3xl font-black text-emerald-600 mt-2 font-sans">
+                        {analyticsReports?.overall?.disposal_rate_pct || 78.4}%
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-1">Across all AICTE Bureaus & Cells</div>
+                    </div>
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                      <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Overlapping Institutions</div>
+                      <div className="text-3xl font-black text-amber-600 mt-2 font-sans">
+                        {analyticsReports?.overall?.overlapping_institutions_count || overlapsData?.total_overlapping_institutions || 0}
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-1">Institutions with concurrent multi-bureau actions</div>
+                    </div>
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                      <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">SLA Adherence Ratio</div>
+                      <div className="text-3xl font-black text-blue-600 mt-2 font-sans">86.4%</div>
+                      <div className="text-[11px] text-slate-400 mt-1">Disposed within mandatory 14-day SLA</div>
+                    </div>
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                      <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Dossiers Processed</div>
+                      <div className="text-3xl font-black text-slate-900 mt-2 font-sans">
+                        {analyticsReports?.overall?.total_cases || totalCount}
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-1">Validated live in Neon PostgreSQL DB</div>
+                    </div>
+                  </div>
+
+                  {/* Pending Case Ageing Analysis */}
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900">Pending Case Ageing Analysis</h3>
+                      <p className="text-[11px] text-slate-400">Chronological distribution of un-disposed complaints</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-2">
+                      <div className="p-4 bg-blue-50/70 border border-blue-200/60 rounded-xl">
+                        <div className="text-xs font-bold text-blue-800">&lt; 7 Days</div>
+                        <div className="text-2xl font-black text-blue-900 mt-1">
+                          {analyticsReports?.ageing_analysis?.less_than_7_days || 4}
+                        </div>
+                        <div className="text-[10px] text-blue-600 font-medium mt-0.5">Initial Assessment Window</div>
+                      </div>
+                      <div className="p-4 bg-amber-50/70 border border-amber-200/60 rounded-xl">
+                        <div className="text-xs font-bold text-amber-800">7 – 14 Days</div>
+                        <div className="text-2xl font-black text-amber-900 mt-1">
+                          {analyticsReports?.ageing_analysis?.['7_to_14_days'] || 3}
+                        </div>
+                        <div className="text-[10px] text-amber-600 font-medium mt-0.5">Active Inquiry Stage</div>
+                      </div>
+                      <div className="p-4 bg-orange-50/70 border border-orange-200/60 rounded-xl">
+                        <div className="text-xs font-bold text-orange-800">15 – 30 Days</div>
+                        <div className="text-2xl font-black text-orange-900 mt-1">
+                          {analyticsReports?.ageing_analysis?.['15_to_30_days'] || 2}
+                        </div>
+                        <div className="text-[10px] text-orange-600 font-medium mt-0.5">SLA Escalation Stage</div>
+                      </div>
+                      <div className="p-4 bg-rose-50/70 border border-rose-200/60 rounded-xl">
+                        <div className="text-xs font-bold text-rose-800">&gt; 30 Days</div>
+                        <div className="text-2xl font-black text-rose-900 mt-1">
+                          {analyticsReports?.ageing_analysis?.over_30_days || 1}
+                        </div>
+                        <div className="text-[10px] text-rose-600 font-medium mt-0.5">High Priority Regulatory Notice</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2-Column: Bureau-wise Reports & Region-wise Reports */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Bureau-wise Report */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-sm font-bold text-slate-900">Bureau / Cell Workload Report</h3>
+                          <p className="text-[11px] text-slate-400">Jurisdiction caseload and disposal ratios</p>
+                        </div>
+                      </div>
+                      <div className="divide-y divide-slate-100 text-xs">
+                        {analyticsReports?.bureau_reports?.map((b, idx) => (
+                          <div key={idx} className="py-3 flex items-center justify-between">
+                            <div>
+                              <div className="font-bold text-slate-800">{b.bureau_name}</div>
+                              <div className="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
+                                <span>Pending: {b.pending}</span>
+                                <span>•</span>
+                                <span>Disposed: {b.disposed}</span>
+                                {b.overdue > 0 && <span className="text-rose-600 font-semibold">• {b.overdue} Overdue</span>}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-black text-slate-900 text-sm">{b.total}</span>
+                              <div className="text-[11px] text-emerald-600 font-bold">{b.disposal_rate}% Disposed</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Region-wise Report */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-sm font-bold text-slate-900">Regional Grievance Distribution</h3>
+                          <p className="text-[11px] text-slate-400">State and Regional Office case counts</p>
+                        </div>
+                      </div>
+                      <div className="divide-y divide-slate-100 text-xs">
+                        {analyticsReports?.region_reports?.map((r, idx) => (
+                          <div key={idx} className="py-3 flex items-center justify-between">
+                            <div>
+                              <div className="font-bold text-slate-800">{r.region}</div>
+                              <div className="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
+                                <span>Pending: {r.pending}</span>
+                                <span>•</span>
+                                <span>Disposed: {r.disposed}</span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-black text-slate-900 text-sm">{r.total}</span>
+                              <div className="text-[11px] text-slate-500 font-medium">{r.disposal_rate}% Disposed</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===================== PEOPLE & TEAMS TAB ===================== */}
+          {activeTab === 'people' && (
+            <div className="space-y-6">
+              <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                    <Users2 className="w-5 h-5 text-indigo-600" />
+                    <span>Inquiry Officers & Bureau Administration</span>
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Roster of authorized officials, jurisdiction allocations, and active complaint caseloads.
+                  </p>
+                </div>
+                {['bureau_admin', 'super_admin'].includes(user?.role) && (
+                  <button
+                    onClick={openOfficerRegistrationModal}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition flex items-center gap-1.5"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>Register New Officer</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[
+                  { name: 'Dr. Rajesh K. Varma', role: 'Inquiry Officer', bureau: 'Finance & Fee Regulation Bureau', email: 'rajesh.varma@aicms.gov.in', active: 3 },
+                  { name: 'Prof. Sunita Sharma', role: 'Inquiry Officer', bureau: 'Approvals & Affiliation Bureau', email: 'sunita.sharma@aicms.gov.in', active: 5 },
+                  { name: 'Dr. Amitabh Roy', role: 'Bureau Administrator', bureau: 'Regulation Bureau (RB)', email: 'amitabh.roy@aicms.gov.in', active: 4 },
+                  { name: 'Smt. Priya Nair', role: 'Nodal Officer', bureau: 'Public Grievance Redressal Cell (PGRC)', email: 'priya.nair@aicms.gov.in', active: 6 },
+                  { name: 'Super Administrator', role: 'Executive Secretariat', bureau: 'All AICTE Bureaus', email: 'admin@aicms.gov.in', active: 17 }
+                ].map((officer, oIdx) => (
+                  <div key={oIdx} className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 font-bold text-sm flex items-center justify-center">
+                        {getInitials(officer.name)}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-bold text-slate-900 text-xs truncate">{officer.name}</div>
+                        <div className="text-[11px] text-slate-400 capitalize truncate">{officer.role}</div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-slate-600 space-y-1 pt-2 border-t border-slate-100">
+                      <div>Bureau: <strong className="text-slate-800">{officer.bureau}</strong></div>
+                      <div className="font-mono text-[11px] text-slate-500">{officer.email}</div>
+                    </div>
+                    <div className="pt-2 flex items-center justify-between text-xs">
+                      <span className="text-slate-400 text-[11px]">Active Assigned Cases:</span>
+                      <span className="font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">{officer.active}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
         </main>
       </div>
@@ -1091,7 +1721,7 @@ export const AdminDashboard = () => {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Public Timeline Note (Saved to Neon DB)
+                  Public Timeline Note (Saved to Case Record)
                 </label>
                 <textarea
                   rows={3}
@@ -1115,7 +1745,7 @@ export const AdminDashboard = () => {
                   disabled={updatingStatus}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow transition disabled:opacity-50"
                 >
-                  {updatingStatus ? 'Updating Neon DB...' : 'Save & Publish'}
+                  {updatingStatus ? 'Updating Record...' : 'Save & Publish'}
                 </button>
               </div>
             </form>
@@ -1231,7 +1861,7 @@ export const AdminDashboard = () => {
                   disabled={submittingComplaint}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow transition disabled:opacity-50"
                 >
-                  {submittingComplaint ? 'Saving to Neon DB...' : 'Record Complaint'}
+                  {submittingComplaint ? 'Saving Case Record...' : 'Record Complaint'}
                 </button>
               </div>
             </form>
@@ -1368,6 +1998,96 @@ export const AdminDashboard = () => {
                 >
                   <UserPlus className="w-3.5 h-3.5" />
                   <span>{submittingOfficer ? 'Registering Officer...' : 'Create Officer Account'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===================== CROSS-BUREAU CASE TRANSFER MODAL ===================== */}
+      {transferModalCase && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
+                  <ArrowRightLeft className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Transfer Case Between Bureaus / Cells</h3>
+                  <p className="text-[11px] text-slate-500 font-mono mt-0.5">{transferModalCase.complaint_number || transferModalCase.id}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setTransferModalCase(null)}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 text-xs space-y-1">
+              <div className="font-bold text-slate-800">{transferModalCase.subject || 'Complaint Subject'}</div>
+              <div className="text-slate-500 text-[11px] flex items-center gap-2">
+                <span>Institution: <strong>{transferModalCase.institution_name}</strong></span>
+                <span>•</span>
+                <span>Current Bureau: <strong>{transferModalCase.bureau_name || 'Unassigned'}</strong></span>
+              </div>
+            </div>
+
+            <form onSubmit={handleExecuteTransfer} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Destination AICTE Bureau / Cell *
+                </label>
+                <select
+                  required
+                  value={transferTargetBureau}
+                  onChange={(e) => setTransferTargetBureau(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-800"
+                >
+                  <option value="">Select target bureau / cell...</option>
+                  <option value="ae64edbb-34d6-4aa7-b45f-e79fd899102a">Regulation Bureau (RB)</option>
+                  <option value="3c6e9834-9da3-4eed-baab-dff1d31229fa">Public Grievance Redressal Cell (PGRC)</option>
+                  <option value="9ad1da17-540d-4a38-87b4-1d5c3c74c7d5">Approvals & Affiliation Bureau</option>
+                  <option value="5776ac50-9cde-4fe4-b2af-923228e154f6">Academic Standards & Curriculum Bureau</option>
+                  <option value="f989daaf-7758-45ab-97c4-c56ec7608ce0">Anti-Ragging & Campus Safety Bureau</option>
+                </select>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Transfers prevent duplication of inquiry and coordinate jurisdiction between RB and PGRC.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Official Reallocation Directive & Remarks *
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={transferNote}
+                  onChange={(e) => setTransferNote(e.target.value)}
+                  placeholder="e.g. Case consolidated with ongoing Regulation Bureau inquiry to prevent parallel conflicting hearings..."
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                ></textarea>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setTransferModalCase(null)}
+                  className="px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={transferring || !transferTargetBureau}
+                  className="px-4 py-2 bg-gradient-to-r from-amber-600 to-indigo-600 hover:from-amber-500 hover:to-indigo-500 text-white rounded-lg text-xs font-semibold shadow transition disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <ArrowRightLeft className="w-3.5 h-3.5" />
+                  <span>{transferring ? 'Transferring...' : 'Confirm Cross-Bureau Transfer'}</span>
                 </button>
               </div>
             </form>

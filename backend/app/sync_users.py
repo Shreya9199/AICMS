@@ -40,7 +40,17 @@ def verify_and_sync_role_accounts():
                 "name": "Registered Complainant",
                 "email": "complainant@nivaran.gov.in",
                 "role": Role.COMPLAINANT,
-                "bureau_id": None
+                "bureau_id": None,
+                "institution_name": None,
+                "institute_code": None
+            },
+            {
+                "name": "Apex Institute Representative",
+                "email": "apex.institute@aicms.ac.in",
+                "role": Role.INSTITUTION,
+                "bureau_id": None,
+                "institution_name": "Apex Institute of Engineering & Technology",
+                "institute_code": "1-351299881"
             }
         ]
 
@@ -50,7 +60,9 @@ def verify_and_sync_role_accounts():
                 existing.name = acc["name"]
                 existing.role = acc["role"]
                 existing.password_hash = default_pw
-                existing.bureau_id = acc["bureau_id"]
+                existing.bureau_id = acc.get("bureau_id")
+                existing.institution_name = acc.get("institution_name")
+                existing.institute_code = acc.get("institute_code")
                 existing.active = True
                 print(f"Updated user account in Neon DB: {acc['email']} [{acc['role']}]")
             else:
@@ -59,7 +71,9 @@ def verify_and_sync_role_accounts():
                     email=acc["email"],
                     password_hash=default_pw,
                     role=acc["role"],
-                    bureau_id=acc["bureau_id"],
+                    bureau_id=acc.get("bureau_id"),
+                    institution_name=acc.get("institution_name"),
+                    institute_code=acc.get("institute_code"),
                     active=True
                 )
                 db.add(user)

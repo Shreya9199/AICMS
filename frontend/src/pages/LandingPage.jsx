@@ -38,13 +38,12 @@ export const LandingPage = () => {
               <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.15] text-white">
                 AICMS <br />
                 <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-300 to-teal-300">
-                  AICTE Integrated Case
-                </span> Monitoring System
+                  Integrated Institution Complaint
+                </span> Monitoring & Status Dashboard
               </h1>
 
               <p className="text-base sm:text-lg text-slate-300 max-w-2xl leading-relaxed font-normal">
-                A transparent, AI-driven escalation & tracking ecosystem for students, faculty, and institutions.
-                Submit complaints confidentially, track real-time SLA metrics, and experience automated accountability.
+                A single-window centralized monitoring ecosystem across AICTE Bureaus & Cells — Regulation Bureau (RB), Public Grievance Redressal Cell (PGRC), and Regional Centres. Real-time cross-bureau overlap detection, SLA ageing alerts, and consolidated institutional tracking.
               </p>
 
               {/* Main Actions */}
@@ -227,31 +226,31 @@ export const LandingPage = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               {
-                title: "Finance & Fee Regulation",
-                desc: "Capitation fees, delayed refund of caution deposits, and unapproved tuition surcharges.",
-                border: "border-blue-500",
-                badge: "Financial",
+                title: "Regulation Bureau (RB)",
+                desc: "Statutory compliance, unapproved course branches, AICTE Approval Process Handbook (APH) regulations, and institutional derecognition proceedings.",
+                border: "border-blue-600",
+                badge: "Regulatory",
                 badgeColor: "bg-blue-50 text-blue-700 border-blue-200"
               },
               {
-                title: "Approvals & Affiliation",
-                desc: "Unapproved branches, unaccredited programs, affiliation irregularities, and prospectus misrepresentation.",
-                border: "border-indigo-500",
-                badge: "Accreditation",
+                title: "Public Grievance Redressal Cell (PGRC)",
+                desc: "Student & faculty grievances, non-refund of security caution deposits, certificate withholding, and grievance ombudsman mandates.",
+                border: "border-indigo-600",
+                badge: "Ombudsman",
                 badgeColor: "bg-indigo-50 text-indigo-700 border-indigo-200"
               },
               {
-                title: "Academic Standards",
-                desc: "Faculty student ratio deficits, examination withholding, and syllabus non-compliance.",
-                border: "border-purple-500",
-                badge: "Academics",
-                badgeColor: "bg-purple-50 text-purple-700 border-purple-200"
+                title: "Finance & Fee Regulation",
+                desc: "Capitation fee complaints, illegal surcharges, scholarship delays, and fee regulatory committee compliance audit.",
+                border: "border-amber-500",
+                badge: "Financial",
+                badgeColor: "bg-amber-50 text-amber-700 border-amber-200"
               },
               {
                 title: "Anti-Ragging & Campus Safety",
-                desc: "Hazing, harassment, student safety breaches, hostel welfare complaints, and zero-tolerance violations.",
+                desc: "Zero-tolerance anti-ragging compliance, internal complaints committee (ICC) mandates, and emergency campus safety investigations.",
                 border: "border-rose-500",
-                badge: "Priority",
+                badge: "High Priority",
                 badgeColor: "bg-rose-50 text-rose-700 border-rose-200"
               }
             ].map((b, i) => (

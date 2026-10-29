@@ -151,7 +151,8 @@ def list_complaints(
         search_filter = or_(
             Complaint.complaint_number.ilike(f"%{search}%"),
             Complaint.subject.ilike(f"%{search}%"),
-            Complaint.institution_name.ilike(f"%{search}%")
+            Complaint.institution_name.ilike(f"%{search}%"),
+            Complaint.institute_code.ilike(f"%{search}%")
         )
         query = query.filter(search_filter)
 
@@ -474,3 +475,263 @@ def ai_triage_complaint(
     )
 
     return triage_result
+
+# =========================================================================
+# CROSS-BUREAU OVERLAP & INSTITUTION CONSOLIDATED MONITORING (AICTE PS)
+# =========================================================================
+
+@router.get("/overlaps/summary")
+def get_overlaps_summary(
+    current_user: User = Depends(require_official),
+    db: Session = Depends(get_db)
+):
+    """
+    Identifies institutions with concurrent complaints across distinct Bureaus/Cells
+    (e.g., Regulation Bureau and PGRC), providing real-time overlap alerts.
+    """
+    from collections import defaultdict
+    all_complaints = db.query(Complaint).all()
+    
+    # Group complaints by normalized institution name
+    inst_groups = defaultdict(list)
+    for c in all_complaints:
+        norm_key = (c.institution_name or "").strip().lower()
+        if norm_key:
+            inst_groups[norm_key].append(c)
+            
+    overlapping_institutions = []
+    total_overlapping_cases = 0
+
+    for norm_name, comps in inst_groups.items():
+        # Set of unique Bureaus handling complaints for this institution
+        bureaus_involved = {}
+        for c in comps:
+            b_name = c.bureau.name if c.bureau else "Unassigned / General"
+            b_id = c.bureau_id or "unassigned"
+            bureaus_involved[b_id] = b_name
+
+        # Overlap condition: complaints handled by >= 2 distinct Bureaus/Cells
+        if len(bureaus_involved) > 1 and len(comps) >= 2:
+            display_name = comps[0].institution_name
+            institute_code = next((c.institute_code for c in comps if c.institute_code), "AICTE-TEMP-ID")
+            region = comps[0].institution_state
+            
+            # Check specifically if RB and PGRC overlap
+            has_rb = any("regulation" in b.lower() for b in bureaus_involved.values())
+            has_pgrc = any("grievance" in b.lower() or "pgrc" in b.lower() for b in bureaus_involved.values())
+            is_rb_pgrc_conflict = has_rb and has_pgrc
+
+            case_summaries = []
+            for c in comps:
+                case_summaries.append({
+                    "id": c.id,
+                    "complaint_number": c.complaint_number,
+                    "subject": c.subject,
+                    "status": c.status,
+                    "priority": c.priority,
+                    "bureau_id": c.bureau_id,
+                    "bureau_name": c.bureau.name if c.bureau else "Unassigned",
+                    "assigned_officer_name": c.assigned_officer.name if c.assigned_officer else "Unassigned",
+                    "submitted_at": c.submitted_at.isoformat() if c.submitted_at else None,
+                    "due_at": c.due_at.isoformat() if c.due_at else None,
+                })
+
+            total_overlapping_cases += len(comps)
+            overlapping_institutions.append({
+                "institution_name": display_name,
+                "institute_code": institute_code,
+                "region": region,
+                "bureaus_involved": list(bureaus_involved.values()),
+                "total_active_cases": len(comps),
+                "is_rb_pgrc_conflict": is_rb_pgrc_conflict,
+                "alert_level": "CRITICAL - RB & PGRC OVERLAP" if is_rb_pgrc_conflict else "COORDINATION REQUIRED",
+                "coordination_required": True,
+                "cases": case_summaries
+            })
+
+    return {
+        "total_overlapping_institutions": len(overlapping_institutions),
+        "total_overlapping_cases": total_overlapping_cases,
+        "items": sorted(overlapping_institutions, key=lambda x: (not x["is_rb_pgrc_conflict"], -x["total_active_cases"]))
+    }
+
+@router.get("/institutions/consolidated")
+def get_consolidated_institutions(
+    search: Optional[str] = None,
+    region: Optional[str] = None,
+    current_user: User = Depends(require_official),
+    db: Session = Depends(get_db)
+):
+    """
+    Consolidated Institution Profiles with historical cross-bureau complaints,
+    disposal rates, and current active bureau distribution.
+    """
+    from collections import defaultdict
+    all_complaints = db.query(Complaint).all()
+    
+    inst_map = defaultdict(lambda: {
+        "institution_name": "",
+        "institute_code": "",
+        "region": "",
+        "total_complaints": 0,
+        "pending": 0,
+        "under_process": 0,
+        "disposed": 0,
+        "escalated": 0,
+        "overdue": 0,
+        "bureaus": set(),
+        "recent_complaints": []
+    })
+
+    now = datetime.utcnow()
+
+    for c in all_complaints:
+        key = (c.institution_name or "").strip()
+        if not key:
+            continue
+        item = inst_map[key]
+        item["institution_name"] = c.institution_name
+        if c.institute_code:
+            item["institute_code"] = c.institute_code
+        item["region"] = c.institution_state or "Central"
+        item["total_complaints"] += 1
+
+        b_name = c.bureau.name if c.bureau else "Unassigned"
+        item["bureaus"].add(b_name)
+
+        if c.status in [ComplaintStatus.RESOLVED, ComplaintStatus.CLOSED]:
+            item["disposed"] += 1
+        elif c.status == ComplaintStatus.ESCALATED:
+            item["escalated"] += 1
+            item["pending"] += 1
+        elif c.status in [ComplaintStatus.IN_PROGRESS, ComplaintStatus.UNDER_REVIEW, ComplaintStatus.ASSIGNED]:
+            item["under_process"] += 1
+            item["pending"] += 1
+        else:
+            item["pending"] += 1
+
+        if c.due_at and c.due_at < now and c.status not in [ComplaintStatus.RESOLVED, ComplaintStatus.CLOSED]:
+            item["overdue"] += 1
+
+        if len(item["recent_complaints"]) < 5:
+            item["recent_complaints"].append({
+                "id": c.id,
+                "complaint_number": c.complaint_number,
+                "subject": c.subject,
+                "category": c.category,
+                "status": c.status,
+                "bureau": b_name,
+                "submitted_at": c.submitted_at.isoformat() if c.submitted_at else None
+            })
+
+    # Prepare response list
+    results = []
+    for inst_name, data in inst_map.items():
+        if not data["institute_code"]:
+            # Deterministic code if missing
+            hash_code = abs(hash(inst_name)) % 10000000
+            data["institute_code"] = f"AICTE-1-{hash_code}"
+
+        disposal_rate = round((data["disposed"] / data["total_complaints"] * 100), 1) if data["total_complaints"] > 0 else 0
+
+        record = {
+            "institution_name": data["institution_name"],
+            "institute_code": data["institute_code"],
+            "region": data["region"],
+            "total_complaints": data["total_complaints"],
+            "pending": data["pending"],
+            "under_process": data["under_process"],
+            "disposed": data["disposed"],
+            "escalated": data["escalated"],
+            "overdue": data["overdue"],
+            "disposal_rate_pct": disposal_rate,
+            "bureaus_count": len(data["bureaus"]),
+            "bureaus": list(data["bureaus"]),
+            "is_multi_bureau": len(data["bureaus"]) > 1,
+            "recent_complaints": data["recent_complaints"]
+        }
+
+        # Search filter
+        if search:
+            s = search.lower().strip()
+            if s not in record["institution_name"].lower() and s not in record["institute_code"].lower():
+                continue
+        if region:
+            if region.lower() not in record["region"].lower():
+                continue
+
+        results.append(record)
+
+    return sorted(results, key=lambda x: (not x["is_multi_bureau"], -x["total_complaints"]))
+
+@router.post("/complaints/{complaint_id}/transfer")
+def transfer_complaint_bureau(
+    complaint_id: str,
+    payload: ComplaintAssignUpdate,
+    current_user: User = Depends(require_official),
+    db: Session = Depends(get_db)
+):
+    """
+    Transfers complaint to another Bureau/Cell (e.g., from PGRC to RB or vice versa)
+    with audit log and chronological workflow note.
+    """
+    comp = db.query(Complaint).filter(Complaint.id == complaint_id).first()
+    if not comp:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Complaint not found")
+
+    # Resilient target bureau lookup: match by ID or by name / partial name
+    target_bureau = db.query(Bureau).filter(
+        (Bureau.id == payload.bureau_id) | 
+        (Bureau.name.ilike(payload.bureau_id.strip())) |
+        (Bureau.name.ilike(f"%{payload.bureau_id.strip()}%"))
+    ).first()
+    
+    # If still not found, try fallback by common names
+    if not target_bureau:
+        name_map = {
+            "b1": "Approvals & Affiliation",
+            "b2": "Finance & Fee Regulation",
+            "b3": "Academic Standards",
+            "b4": "Anti-Ragging",
+            "rb": "Regulation Bureau",
+            "pgrc": "Public Grievance Redressal Cell"
+        }
+        mapped = name_map.get(str(payload.bureau_id).lower().strip())
+        if mapped:
+            target_bureau = db.query(Bureau).filter(Bureau.name.ilike(f"%{mapped}%")).first()
+
+    if not target_bureau:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Target bureau not found")
+
+    old_bureau_name = comp.bureau.name if comp.bureau else "Unassigned"
+    comp.bureau_id = target_bureau.id
+    comp.assigned_officer_id = payload.assigned_officer_id if payload.assigned_officer_id else None
+    comp.updated_at = datetime.utcnow()
+
+    transfer_note = payload.public_note or f"Transferred from {old_bureau_name} to {target_bureau.name} to avoid duplicated regulatory proceedings."
+    history = StatusHistory(
+        complaint_id=comp.id,
+        changed_by=current_user.id,
+        old_status=comp.status,
+        new_status=comp.status,
+        public_note=f"[BUREAU TRANSFER] {transfer_note}"
+    )
+    db.add(history)
+
+    audit = AuditLog(
+        actor_id=current_user.id,
+        action="COMPLAINT_TRANSFERRED",
+        entity_type="complaint",
+        entity_id=comp.id,
+        metadata_json={
+            "from_bureau": old_bureau_name,
+            "to_bureau": target_bureau.name,
+            "reason": payload.public_note
+        }
+    )
+    db.add(audit)
+    db.commit()
+    db.refresh(comp)
+
+    return _format_admin_complaint(comp)
+
