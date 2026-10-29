@@ -67,43 +67,53 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    email = form_data.username.lower().strip()
-    user = db.query(User).filter(User.email == email).first()
-    
-    if not user or not verify_password(form_data.password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
+    try:
+        email = form_data.username.lower().strip()
+        user = db.query(User).filter(User.email == email).first()
+        
+        if not user or not verify_password(form_data.password, user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        if not user.active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User account is deactivated"
+            )
+
+        access_token = create_access_token(data={"sub": user.id, "role": user.role, "bureau_id": user.bureau_id})
+        
+        bureau_name = None
+        if user.bureau_id:
+            bureau = db.query(Bureau).filter(Bureau.id == user.bureau_id).first()
+            if bureau:
+                bureau_name = bureau.name
+
+        user_resp = UserResponse(
+            id=user.id,
+            name=user.name,
+            email=user.email,
+            role=user.role,
+            bureau_id=user.bureau_id,
+            bureau_name=bureau_name,
+            institution_name=user.institution_name,
+            institute_code=user.institute_code,
+            active=user.active,
+            created_at=user.created_at
         )
-    if not user.active:
+
+        return TokenResponse(access_token=access_token, token_type="bearer", user=user_resp)
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User account is deactivated"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Login server error: {type(e).__name__} - {str(e)}"
         )
-
-    access_token = create_access_token(data={"sub": user.id, "role": user.role, "bureau_id": user.bureau_id})
-    
-    bureau_name = None
-    if user.bureau_id:
-        bureau = db.query(Bureau).filter(Bureau.id == user.bureau_id).first()
-        if bureau:
-            bureau_name = bureau.name
-
-    user_resp = UserResponse(
-        id=user.id,
-        name=user.name,
-        email=user.email,
-        role=user.role,
-        bureau_id=user.bureau_id,
-        bureau_name=bureau_name,
-        institution_name=user.institution_name,
-        institute_code=user.institute_code,
-        active=user.active,
-        created_at=user.created_at
-    )
-
-    return TokenResponse(access_token=access_token, token_type="bearer", user=user_resp)
 
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
