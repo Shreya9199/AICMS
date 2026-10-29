@@ -22,38 +22,48 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
     role = Role.INSTITUTION if user_in.role == Role.INSTITUTION else Role.COMPLAINANT
     bureau_id = None
     
-    hashed_password = get_password_hash(user_in.password)
-    user = User(
-        name=user_in.name,
-        email=user_in.email.lower().strip(),
-        password_hash=hashed_password,
-        role=role,
-        bureau_id=bureau_id,
-        institution_name=user_in.institution_name.strip() if user_in.institution_name else None,
-        institute_code=user_in.institute_code.strip().upper() if user_in.institute_code else None,
-        active=True
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    try:
+        hashed_password = get_password_hash(user_in.password)
+        user = User(
+            name=user_in.name,
+            email=user_in.email.lower().strip(),
+            password_hash=hashed_password,
+            role=role,
+            bureau_id=bureau_id,
+            institution_name=user_in.institution_name.strip() if user_in.institution_name else None,
+            institute_code=user_in.institute_code.strip().upper() if user_in.institute_code else None,
+            active=True
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
 
-    # Log audit
-    audit = AuditLog(
-        actor_id=user.id,
-        action="USER_REGISTERED",
-        entity_type="user",
-        entity_id=user.id,
-        metadata_json={
-            "role": user.role,
-            "email": user.email,
-            "institution_name": user.institution_name,
-            "institute_code": user.institute_code
-        }
-    )
-    db.add(audit)
-    db.commit()
+        # Log audit
+        try:
+            audit = AuditLog(
+                actor_id=user.id,
+                action="USER_REGISTERED",
+                entity_type="user",
+                entity_id=user.id,
+                metadata_json={
+                    "role": user.role,
+                    "email": user.email,
+                    "institution_name": user.institution_name,
+                    "institute_code": user.institute_code
+                }
+            )
+            db.add(audit)
+            db.commit()
+        except Exception:
+            db.rollback()
 
-    return user
+        return user
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Registration failed: {str(e)}"
+        )
 
 @router.post("/login", response_model=TokenResponse)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
