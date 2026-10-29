@@ -37,10 +37,13 @@ app.add_middleware(
 # Health endpoint
 @app.get("/health", tags=["Health"])
 def health_check():
+    from app.core.database import database_url
+    dialect = "postgresql" if "postgres" in database_url else "sqlite"
     return {
         "status": "healthy",
         "service": settings.PROJECT_NAME,
         "database": "connected",
+        "dialect": dialect,
         "version": "1.0.0"
     }
 
