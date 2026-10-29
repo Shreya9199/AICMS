@@ -64,7 +64,7 @@ export const RegisterPage = () => {
       if (err.response?.data?.detail) {
         setError(err.response.data.detail);
       } else if (err.code === 'ERR_NETWORK' || !err.response) {
-        setError('Cannot connect to backend server. Please verify the backend is running on port 8000.');
+        setError('Cannot connect to backend server. Please check your network connection or verify that the backend API is live.');
       } else {
         setError('Registration failed. Please check your details and try again.');
       }
